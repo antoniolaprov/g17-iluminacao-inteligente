@@ -1,0 +1,9 @@
+# Credenciais locais (senha do Wi-Fi real etc.) nunca vão para o repositório
+secrets.h
+*.env
+
+# PlatformIO / editores
+.pio/
+.vscode/
+__pycache__/
+*.db
