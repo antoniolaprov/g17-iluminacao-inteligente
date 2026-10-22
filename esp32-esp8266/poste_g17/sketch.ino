@@ -1,5 +1,5 @@
 // =============================================================
-//  Poste Inteligente G17 - v2.2 (FreeRTOS + Wi-Fi + MQTT)
+//  Poste Inteligente G17 - v2.3 (FreeRTOS + Wi-Fi + MQTT)
 //  CESAR School - Sistemas Embarcados
 // =============================================================
 #include <WiFi.h>
@@ -266,6 +266,8 @@ void tarefaComunicacao(void* param) {
   mqtt.setServer(MQTT_BROKER, MQTT_PORTA);
   mqtt.setCallback(aoReceberMensagem);
   mqtt.setBufferSize(512);
+  mqtt.setSocketTimeout(3);   // espera no maximo 3 s pelo broker (watchdog e 5 s)
+  mqtt.setKeepAlive(30);      // tolera simulador lento sem derrubar a conexao
 
   bool wifiAntes = false;
   bool mqttAntes = false;
@@ -347,7 +349,7 @@ void setup() {
   mutexEstado = xSemaphoreCreateMutex();
   mutexSerial = xSemaphoreCreateMutex();
 
-  logf("Poste inteligente G17 v2.2 iniciado (FreeRTOS + MQTT)");
+  logf("Poste inteligente G17 v2.3 iniciado (FreeRTOS + MQTT)");
   logf("[WiFi] conectando...");
 
   //                       funcao              nome          pilha  param prio handle nucleo
