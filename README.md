@@ -217,5 +217,8 @@ Para gravar na placa física, mude `#define SIMULACAO 1` para `0` e preencha o n
 ---
 
 ## Equipe
-- Antônio Augusto
-- *(adicionar os demais integrantes)*
+Antônio Augusto, Arthur Sales, Bruno Mayer, Felipe Andrade, Henrique Figueredo,
+Luiz Claudio Pinheiro e Miguel Becker.
+
+> Vai usar um assistente de IA no projeto? Anexe o arquivo
+> [`docs/CONTEXTO_PARA_IA.md`](docs/CONTEXTO_PARA_IA.md) no início da conversa.
