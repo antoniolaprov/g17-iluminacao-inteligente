@@ -40,8 +40,8 @@ const int PINO_ONBOARD = 2;
 const bool LDR_INVERTIDO = true;
 const int  LIMIAR_NOITE  = 2000;
 #else
-const bool LDR_INVERTIDO = false;
-const int  LIMIAR_NOITE  = 1500;
+const bool LDR_INVERTIDO = false;   // modulo fisico: mais luz = numero maior (testado em 27/10)
+const int  LIMIAR_NOITE  = 2000;    // sala clara ~4095, dedo em cima ~0
 #endif
 const bool  RGB_ANODO_COMUM           = false;
 const float DIST_PRESENCA_CM          = 50;

@@ -2,7 +2,7 @@
 
 > **Como usar este arquivo:** anexe-o (ou cole todo o conteúdo) no início de uma conversa com o Claude
 > ou outro assistente de IA, e depois faça sua pergunta. Ele resume tudo o que o grupo decidiu e
-> construiu até **22/10/2026**.
+> construiu até **27/10/2026**.
 >
 > Repositório: https://github.com/antoniolaprov/g17-iluminacao-inteligente
 
@@ -162,7 +162,7 @@ resistores, ultrassônico (versão RCWL-9610, funciona em 3,3 V) e **módulo de 
   na mesma fileira da protoboard.
 - A leitura analógica do ESP32 satura perto de 3,1 V (fica em 4095 no fim do giro do potenciômetro)
   e não é perfeitamente linear. Isso é normal.
-- No módulo de luz, **mais luz = número menor** (por isso `LDR_INVERTIDO = true` no código).
+- **Sentido do módulo de luz:** o módulo do Wokwi dá *mais luz = número menor* (`LDR_INVERTIDO = true` no modo simulação). **O módulo físico do grupo é o contrário: mais luz = número maior** (`LDR_INVERTIDO = false` no modo placa física). Isso foi confirmado em teste em 27/10: com a sala clara, a leitura bruta fica perto de 4095; com o dedo em cima, perto de 0.
 
 ---
 
@@ -264,14 +264,14 @@ Risco alto ou offline → alerta no Telegram (bônus).
 - PlatformIO instalado; driver CP210x instalado (placa na COM3); gravação funcionando.
 - **Montado e funcionando:** módulo de luz (AO no GPIO34) e potenciômetro (GPIO35), testados com um
   sketch que imprime os dois valores.
-- **Pendente:** anotar os valores do LDR (ambiente, coberto, lanterna) para calibrar `LIMIAR_NOITE`
-  na placa física.
+- **Calibração do LDR (27/10):** sala clara ≈ 4095 (satura), dedo em cima ≈ 0. Módulo com mais luz =
+  número maior, então `LDR_INVERTIDO = false` e `LIMIAR_NOITE = 2000` na placa física.
 - **Próximos:** LED branco (GPIO25 + 100 Ω), LED RGB, ultrassônico. Depois, gravar o firmware completo.
 
 **Ao levar o firmware para a placa física:**
 - `#define SIMULACAO 0` e preencher SSID/senha do Wi-Fi (**não commitar a senha real**).
-- No bloco `#else` (placa física), trocar para `LDR_INVERTIDO = true` (o módulo de 4 pinos se
-  comporta igual ao do Wokwi) e ajustar `LIMIAR_NOITE` com os valores medidos.
+- No bloco `#else` (placa física), manter `LDR_INVERTIDO = false` (o módulo físico dá mais luz =
+  número maior, ao contrário do Wokwi). `LIMIAR_NOITE = 2000` funciona: sala clara ≈ 4095 e dedo ≈ 0.
 - O PlatformIO exige `#include <Arduino.h>` no topo e a biblioteca no `platformio.ini`:
   `lib_deps = knolleary/PubSubClient`.
 - O firmware atual está num único arquivo. A estrutura em vários arquivos (`config.h`,
