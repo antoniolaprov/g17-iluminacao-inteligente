@@ -165,10 +165,24 @@ desligar ou perder a conexão sem avisar. Assim a central sabe na hora que um po
 |---|---|
 | 25 | LED branco (luminária), resistor de 100 Ω |
 | 16 / 17 / 23 | LED RGB R / G / B (220 / 100 / 100 Ω) |
-| 26 / 27 | HC-SR04 TRIG / ECHO |
-| 34 | LDR (divisor com resistor de 10 kΩ) |
+| 26 / 27 | HC-SR04 TRIG / ECHO (ECHO com divisor de tensão, ver abaixo) |
+| 34 | Módulo de luz (LDR) de 4 pinos, saída **AO** (o DO fica solto) |
 | 35 | Potenciômetro (simula desgaste) |
 | 2 | LED da placa (aceso = conectado à central) |
+
+O **HC-SR04 precisa de 5 V**: alimente-o pelo pino **VIN** (5 V vindos do USB) e use um
+**divisor de tensão no ECHO**, porque o sensor devolve 5 V e o ESP32 só aguenta 3,3 V:
+
+```
+ECHO ──── 1 kΩ ────┬──── GPIO27
+                   │
+                 1 kΩ
+                   │
+                 1 kΩ
+                   │
+                  GND
+```
+O TRIG pode ir direto no GPIO26. Também funciona com 10 kΩ em cima e 2 × 10 kΩ embaixo.
 
 As entradas analógicas usam os pinos **34 e 35 (ADC1)**, porque os pinos do ADC2 não
 funcionam enquanto o Wi-Fi está ligado.

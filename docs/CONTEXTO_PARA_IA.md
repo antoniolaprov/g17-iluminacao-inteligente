@@ -136,7 +136,7 @@ Gerenciador de Dispositivos e o PlatformIO não acha porta. No PlatformIO: board
 
 **Componentes:** o kit da faculdade (maleta RoboCore "My Project Box") tem tudo o que o MVP precisa,
 conforme análise da professora. Inclui ESP32, protoboards, jumpers, LED RGB, LEDs, potenciômetro,
-resistores, ultrassônico (versão RCWL-9610, funciona em 3,3 V) e **módulo de luz (LDR) de 4 pinos**.
+resistores, ultrassônico **HC-SR04** (precisa de 5 V, ver seção 6) e **módulo de luz (LDR) de 4 pinos**.
 
 ---
 
@@ -147,13 +147,15 @@ resistores, ultrassônico (versão RCWL-9610, funciona em 3,3 V) e **módulo de 
 | **25** | LED branco (luminária, PWM) | GPIO25 → **100 Ω** → LED (perna longa) · perna curta → GND |
 | **16 / 17 / 23** | LED RGB R / G / B | via **220 / 100 / 100 Ω** · comum no GND (cátodo comum) |
 | **26** | Ultrassônico TRIG | direto |
-| **27** | Ultrassônico ECHO | direto (sensor alimentado em **3V3**) |
+| **27** | Ultrassônico ECHO | **via divisor de tensão** (1 kΩ em cima, 2 × 1 kΩ embaixo). Sensor alimentado no **VIN (5 V)** |
 | **34** | **Módulo de luz, pino AO** | VCC → **3V3**, GND → GND, **AO → GPIO34**, **DO não usado** |
 | **35** | Potenciômetro (desgaste) | pontas em 3V3 e GND, **meio no GPIO35** |
 | **2** | LED azul da placa | aceso = conectado à central |
 
 **Regras importantes:**
 - O ESP32 é **3,3 V**. Nunca coloque 5 V num GPIO. **Alimente o módulo de luz em 3V3**, não em 5V/VIN.
+- **HC-SR04:** em 3,3 V ele não responde (sempre sem eco). Alimente no **VIN** e **nunca** ligue o ECHO
+  direto no GPIO: ele devolve 5 V. Use o divisor `ECHO → 1 kΩ → GPIO27`, `GPIO27 → 1 kΩ → 1 kΩ → GND`.
 - Entradas analógicas **só no ADC1 (GPIO 32 a 39)**, porque o ADC2 para de funcionar com o Wi-Fi ligado.
 - Evitar GPIO 0, 5, 12, 15 (boot) e 6 a 11 (flash).
 - O módulo de luz tem dois pinos de saída: **AO** (analógico, o que usamos) e **DO** (digital). Ligar
@@ -260,13 +262,17 @@ Risco alto ou offline → alerta no Telegram (bônus).
   `libraries.txt`); README com contextualização, lógica, contrato MQTT e mapa de pinos.
 - `applications/` e `schematics/` ainda só têm README.
 
-### Montagem física (em andamento, 22/10)
+### Montagem física (em andamento, 27/10)
 - PlatformIO instalado; driver CP210x instalado (placa na COM3); gravação funcionando.
 - **Montado e funcionando:** módulo de luz (AO no GPIO34) e potenciômetro (GPIO35), testados com um
   sketch que imprime os dois valores.
 - **Calibração do LDR (27/10):** sala clara ≈ 4095 (satura), dedo em cima ≈ 0. Módulo com mais luz =
   número maior, então `LDR_INVERTIDO = false` e `LIMIAR_NOITE = 2000` na placa física.
-- **Próximos:** LED branco (GPIO25 + 100 Ω), LED RGB, ultrassônico. Depois, gravar o firmware completo.
+- **Potenciômetro:** chegou a ficar sempre em 0 porque faltava o fio do **VCC**. Corrigido.
+- **Ultrassônico (27/10):** HC-SR04 não respondia em 3,3 V. Passou a funcionar alimentado no VIN, com
+  divisor de tensão no ECHO.
+- **Os 3 sensores estão montados e funcionando** (luz, potenciômetro, ultrassônico).
+- **Próximos:** LED branco (GPIO25 + 100 Ω) e LED RGB. Depois, gravar o firmware completo.
 
 **Ao levar o firmware para a placa física:**
 - `#define SIMULACAO 0` e preencher SSID/senha do Wi-Fi (**não commitar a senha real**).
