@@ -163,7 +163,7 @@ desligar ou perder a conexão sem avisar. Assim a central sabe na hora que um po
 
 | GPIO | Componente |
 |---|---|
-| 25 | LED branco (luminária), resistor de 100 Ω |
+| 18 | LED branco (luminária), resistor de 100 Ω |
 | 16 / 17 / 23 | LED RGB R / G / B (220 / 100 / 100 Ω) |
 | 26 / 27 | HC-SR04 TRIG / ECHO (ECHO com divisor de tensão, ver abaixo) |
 | 34 | Módulo de luz (LDR) de 4 pinos, saída **AO** (o DO fica solto) |

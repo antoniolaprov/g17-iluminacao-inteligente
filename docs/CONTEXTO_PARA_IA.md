@@ -144,7 +144,7 @@ resistores, ultrassônico **HC-SR04** (precisa de 5 V, ver seção 6) e **módul
 
 | GPIO | Componente | Ligação |
 |---|---|---|
-| **25** | LED branco (luminária, PWM) | GPIO25 → **100 Ω** → LED (perna longa) · perna curta → GND |
+| **18** | LED branco (luminária, PWM) | GPIO18 → **100 Ω** → LED (perna longa) · perna curta → GND. *Era o GPIO25; mudou em 27/10 para liberar espaço na placa* |
 | **16 / 17 / 23** | LED RGB R / G / B | via **220 / 100 / 100 Ω** · comum no GND (cátodo comum) |
 | **26** | Ultrassônico TRIG | direto |
 | **27** | Ultrassônico ECHO | **via divisor de tensão** (1 kΩ em cima, 2 × 1 kΩ embaixo). Sensor alimentado no **VIN (5 V)** |
@@ -272,7 +272,7 @@ Risco alto ou offline → alerta no Telegram (bônus).
 - **Ultrassônico (27/10):** HC-SR04 não respondia em 3,3 V. Passou a funcionar alimentado no VIN, com
   divisor de tensão no ECHO.
 - **Os 3 sensores estão montados e funcionando** (luz, potenciômetro, ultrassônico).
-- **Próximos:** LED branco (GPIO25 + 100 Ω) e LED RGB. Depois, gravar o firmware completo.
+- **Próximos:** LED branco (GPIO18 + 100 Ω) e LED RGB. Depois, gravar o firmware completo.
 
 **Ao levar o firmware para a placa física:**
 - `#define SIMULACAO 0` e preencher SSID/senha do Wi-Fi (**não commitar a senha real**).

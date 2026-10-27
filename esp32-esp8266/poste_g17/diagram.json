@@ -3,44 +3,242 @@
   "author": "Grupo 17",
   "editor": "wokwi",
   "parts": [
-    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
-    { "type": "wokwi-led", "id": "lum", "top": -60, "left": 260, "attrs": { "color": "white", "label": "Luminaria" } },
-    { "type": "wokwi-resistor", "id": "r1", "top": 20, "left": 170, "attrs": { "value": "100" } },
-    { "type": "wokwi-rgb-led", "id": "rgb", "top": 170, "left": 300, "attrs": { "common": "cathode" } },
-    { "type": "wokwi-resistor", "id": "rR", "top": 160, "left": 170, "attrs": { "value": "220" } },
-    { "type": "wokwi-resistor", "id": "rG", "top": 190, "left": 170, "attrs": { "value": "100" } },
-    { "type": "wokwi-resistor", "id": "rB", "top": 220, "left": 170, "attrs": { "value": "100" } },
-    { "type": "wokwi-potentiometer", "id": "pot", "top": -80, "left": -220, "attrs": {} },
-    { "type": "wokwi-hc-sr04", "id": "us", "top": -200, "left": -20, "attrs": { "distance": "200" } },
-    { "type": "wokwi-photoresistor-sensor", "id": "ldr", "top": 120, "left": -300, "attrs": {} }
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-led",
+      "id": "lum",
+      "top": -60,
+      "left": 260,
+      "attrs": {
+        "color": "white",
+        "label": "Luminaria"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": 20,
+      "left": 170,
+      "attrs": {
+        "value": "100"
+      }
+    },
+    {
+      "type": "wokwi-rgb-led",
+      "id": "rgb",
+      "top": 170,
+      "left": 300,
+      "attrs": {
+        "common": "cathode"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rR",
+      "top": 160,
+      "left": 170,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rG",
+      "top": 190,
+      "left": 170,
+      "attrs": {
+        "value": "100"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rB",
+      "top": 220,
+      "left": 170,
+      "attrs": {
+        "value": "100"
+      }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot",
+      "top": -80,
+      "left": -220,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-hc-sr04",
+      "id": "us",
+      "top": -200.1,
+      "left": -23.3,
+      "attrs": {
+        "distance": "200"
+      }
+    },
+    {
+      "type": "wokwi-photoresistor-sensor",
+      "id": "ldr",
+      "top": 118.4,
+      "left": -296.8,
+      "attrs": {}
+    }
   ],
   "connections": [
-    [ "esp:TX", "$serialMonitor:RX", "", [] ],
-    [ "esp:RX", "$serialMonitor:TX", "", [] ],
-
-    [ "esp:25", "r1:1", "green", [] ],
-    [ "r1:2", "lum:A", "green", [] ],
-    [ "lum:C", "esp:GND.2", "black", [] ],
-
-    [ "esp:16", "rR:1", "red", [] ],
-    [ "rR:2", "rgb:R", "red", [] ],
-    [ "esp:17", "rG:1", "green", [] ],
-    [ "rG:2", "rgb:G", "green", [] ],
-    [ "esp:23", "rB:1", "blue", [] ],
-    [ "rB:2", "rgb:B", "blue", [] ],
-    [ "rgb:COM", "esp:GND.3", "black", [] ],
-
-    [ "pot:VCC", "esp:3V3", "red", [] ],
-    [ "pot:GND", "esp:GND.1", "black", [] ],
-    [ "pot:SIG", "esp:35", "orange", [] ],
-
-    [ "us:VCC", "esp:3V3", "red", [] ],
-    [ "us:GND", "esp:GND.1", "black", [] ],
-    [ "us:TRIG", "esp:26", "purple", [] ],
-    [ "us:ECHO", "esp:27", "yellow", [] ],
-
-    [ "ldr:VCC", "esp:3V3", "red", [] ],
-    [ "ldr:GND", "esp:GND.1", "black", [] ],
-    [ "ldr:AO", "esp:34", "orange", [] ]
-  ]
+    [
+      "esp:TX",
+      "$serialMonitor:RX",
+      "",
+      []
+    ],
+    [
+      "esp:RX",
+      "$serialMonitor:TX",
+      "",
+      []
+    ],
+    [
+      "esp:18",
+      "r1:1",
+      "green",
+      []
+    ],
+    [
+      "r1:2",
+      "lum:A",
+      "green",
+      []
+    ],
+    [
+      "lum:C",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "esp:16",
+      "rR:1",
+      "red",
+      []
+    ],
+    [
+      "rR:2",
+      "rgb:R",
+      "red",
+      []
+    ],
+    [
+      "esp:17",
+      "rG:1",
+      "green",
+      []
+    ],
+    [
+      "rG:2",
+      "rgb:G",
+      "green",
+      []
+    ],
+    [
+      "esp:23",
+      "rB:1",
+      "blue",
+      []
+    ],
+    [
+      "rB:2",
+      "rgb:B",
+      "blue",
+      []
+    ],
+    [
+      "rgb:COM",
+      "esp:GND.3",
+      "black",
+      []
+    ],
+    [
+      "pot:VCC",
+      "esp:3V3",
+      "red",
+      []
+    ],
+    [
+      "pot:GND",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "pot:SIG",
+      "esp:35",
+      "orange",
+      [
+        "v21.1",
+        "h123.4",
+        "v67.2"
+      ]
+    ],
+    [
+      "us:VCC",
+      "esp:3V3",
+      "red",
+      []
+    ],
+    [
+      "us:GND",
+      "esp:GND.1",
+      "black",
+      [
+        "v47.9",
+        "h-110.1",
+        "v211.2"
+      ]
+    ],
+    [
+      "us:TRIG",
+      "esp:26",
+      "purple",
+      []
+    ],
+    [
+      "us:ECHO",
+      "esp:27",
+      "yellow",
+      [
+        "h-52.1",
+        "v230.3"
+      ]
+    ],
+    [
+      "ldr:VCC",
+      "esp:3V3",
+      "cyan",
+      [
+        "h105.6",
+        "v-105.6"
+      ]
+    ],
+    [
+      "ldr:GND",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "ldr:AO",
+      "esp:34",
+      "orange",
+      [
+        "h57.6",
+        "v-96.7"
+      ]
+    ]
+  ],
+  "dependencies": {}
 }

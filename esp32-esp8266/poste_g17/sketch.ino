@@ -1,5 +1,5 @@
 // =============================================================
-//  Poste Inteligente G17 - v2.3 (FreeRTOS + Wi-Fi + MQTT)
+//  Poste Inteligente G17 - v2.4 (FreeRTOS + Wi-Fi + MQTT)
 //  CESAR School - Sistemas Embarcados
 // =============================================================
 #include <WiFi.h>
@@ -25,7 +25,7 @@ char TOPICO_COMANDO[48];
 char TOPICO_STATUS[48];
 
 // ---------------- Pinos ----------------
-const int PINO_LED     = 25;
+const int PINO_LED     = 18;   // luminaria (antes era 25)
 const int PINO_R       = 16;
 const int PINO_G       = 17;
 const int PINO_B       = 23;
@@ -349,7 +349,7 @@ void setup() {
   mutexEstado = xSemaphoreCreateMutex();
   mutexSerial = xSemaphoreCreateMutex();
 
-  logf("Poste inteligente G17 v2.3 iniciado (FreeRTOS + MQTT)");
+  logf("Poste inteligente G17 v2.4 iniciado (FreeRTOS + MQTT)");
   logf("[WiFi] conectando...");
 
   //                       funcao              nome          pilha  param prio handle nucleo
