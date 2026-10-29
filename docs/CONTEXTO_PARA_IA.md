@@ -185,7 +185,7 @@ resistores, ultrassônico **HC-SR04** (precisa de 5 V, ver seção 6) e **módul
 | `luz` | Luz ambiente, 0 a 4095 (já normalizada: maior = mais claro) |
 | `noite` | 1 se está de noite |
 | `dist` | Distância do ultrassônico, em cm (999 = nada detectado) |
-| `presenca` | 1 se houve pedestre nos últimos 10 s |
+| `presenca` | 1 se houve pedestre nos últimos 2 s |
 | `desgaste` | 0.00 a 1.00 (no poste real vem do potenciômetro) |
 | `pct` | Brilho aplicado, em % |
 | `estado` | `DIA`, `DIMERIZADO`, `NOITE`, `PEDESTRE`, `FALHA` ou `FAILSAFE` |
@@ -216,19 +216,19 @@ ou `baixa`).
 O controle roda a cada 50 ms e segue esta prioridade:
 1. **De dia** → `DIA`, 0%.
 2. **Sem rede há mais de 15 s** → `FAILSAFE`, 100%, RGB azul.
-3. **Pedestre a menos de 5 cm nos últimos 10 s** → `PEDESTRE`, 100%, RGB verde.
+3. **Pedestre a menos de 5 cm nos últimos 2 s** → `PEDESTRE`, 100%, RGB verde.
 4. **Senão** → `DIMERIZADO`, `max(pedido da central, 70%)`, RGB amarelo. Se o pedido for 100% → `NOITE`, RGB verde.
 
 Por cima de tudo: **desgaste > 0,70** → `FALHA`, RGB vermelho e LED cintilando (o brilho calculado é mantido).
 
-**Parâmetros:** piso CPTED 70% · presença a 5 cm por 10 s (escala da maquete; era 50 cm. O HC-SR04 não mede bem abaixo de ~3 cm, então não reduzir mais) · ecos < 2 cm descartados · 2 leituras seguidas · desgaste 0,70 · carência do fail-safe
+**Parâmetros:** piso CPTED 70% · presença a 5 cm por 2 s (escala da maquete; era 50 cm. O HC-SR04 não mede bem abaixo de ~3 cm, então não reduzir mais) · ecos < 2 cm descartados · 2 leituras seguidas · correção gama 2,2 na luminária (o `pct` é brilho percebido; sem ela 70% parecia quase 100%) · desgaste 0,70 · carência do fail-safe
 15 s · telemetria a cada 5 s · potência pedida inicial 40%.
 
 **FreeRTOS (3 tarefas + mutex do estado + mutex do Serial):**
 
 | Tarefa | Prioridade | Período | Função |
 |---|---|---|---|
-| `sensores` | 2 | 100 ms | Lê LDR, ultrassônico e potenciômetro |
+| `sensores` | 2 | 60 ms | Lê LDR, ultrassônico e potenciômetro |
 | `controle` | 3 | 50 ms | Decide estado e brilho, aciona LEDs |
 | `comunicacao` | 1 | 20 ms | Wi-Fi, MQTT, telemetria, comandos |
 

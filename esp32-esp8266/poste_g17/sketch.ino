@@ -1,5 +1,5 @@
 // =============================================================
-//  Poste Inteligente G17 - v2.10 (FreeRTOS + Wi-Fi + MQTT)
+//  Poste Inteligente G17 - v2.11 (FreeRTOS + Wi-Fi + MQTT)
 //  CESAR School - Sistemas Embarcados
 //
 //  Hardware: a luminaria e um LED RGB aceso em branco. As tres cores
@@ -51,7 +51,8 @@ const int  LIMIAR_NOITE  = 2000;    // sala clara ~4095, dedo em cima ~0
 #endif
 const bool  RGB_ANODO_COMUM           = false;
 const float DIST_PRESENCA_CM          = 5;      // escala da maquete (menor distancia confiavel do HC-SR04)
-const unsigned long TEMPO_PRESENCA_MS = 10000;
+const unsigned long TEMPO_PRESENCA_MS = 2000;   // luz forte por 2 s depois que o pedestre sai (antes 10 s)
+const float GAMMA_LUMINARIA           = 2.2;    // correcao gama: brilho percebido (1.0 = PWM linear)
 const int   PISO_PCT                  = 70;     // piso CPTED
 const float LIMIAR_DESGASTE           = 0.70;
 const unsigned long INTERVALO_TELEMETRIA_MS = 5000;
@@ -118,7 +119,7 @@ void setConectado(bool valor) {
 }
 
 // =============================================================
-//  TAREFA 1 - Sensores (a cada 100 ms)
+//  TAREFA 1 - Sensores (a cada 60 ms)
 // =============================================================
 void tarefaSensores(void* param) {
   bool jaViuPedestre = false;          // evita o "pedestre fantasma" no boot
@@ -149,7 +150,7 @@ void tarefaSensores(void* param) {
     est.desgaste = desgaste;
     xSemaphoreGive(mutexEstado);
 
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(60));   // 60 ms e o intervalo minimo recomendado para o HC-SR04
   }
 }
 
@@ -182,8 +183,10 @@ void tarefaControle(void* param) {
     }
     if (falha) nome = "FALHA";
 
-    // LED principal (com cintilacao se houver falha)
-    int duty = pct * 255 / 100;
+    // LED principal (com cintilacao se houver falha).
+    // Correcao gama: o olho nao percebe brilho de forma linear (70% de PWM parece quase 100%).
+    // Convertendo pelo brilho percebido, 70% realmente parece 70% e o pedestre (100%) fica evidente.
+    int duty = (int)(pow(pct / 100.0, GAMMA_LUMINARIA) * 255 + 0.5);
     if (falha && duty > 0 && random(100) < 30) duty /= 4;
     analogWrite(PINO_LED, duty);
 
@@ -366,7 +369,7 @@ void setup() {
   mutexEstado = xSemaphoreCreateMutex();
   mutexSerial = xSemaphoreCreateMutex();
 
-  logf("Poste inteligente G17 v2.10 iniciado (FreeRTOS + MQTT)");
+  logf("Poste inteligente G17 v2.11 iniciado (FreeRTOS + MQTT)");
 #if USAR_REDE
   logf("[WiFi] conectando...");
 #else

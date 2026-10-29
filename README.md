@@ -69,7 +69,7 @@ flowchart TD
     B -- sim --> DIA[DIA<br/>luz apagada, 0%]
     B -- não --> F{Sem rede há mais de 15 s?}
     F -- sim --> FS[FAILSAFE<br/>100%, RGB azul]
-    F -- não --> P{Pedestre nos<br/>últimos 10 s?}
+    F -- não --> P{Pedestre nos<br/>últimos 2 s?}
     P -- sim --> PED[PEDESTRE<br/>100%, RGB verde]
     P -- não --> DIM[DIMERIZADO<br/>máx. entre pedido e 70%<br/>RGB amarelo]
 ```
@@ -86,7 +86,7 @@ deixar a rua mais escura.
 | `DIA` | Há luz ambiente suficiente | 0% | Verde |
 | `DIMERIZADO` | Noite, rua vazia | Pedido da central, nunca abaixo de 70% | Amarelo |
 | `NOITE` | Noite, rua vazia, central pediu 100% | 100% | Verde |
-| `PEDESTRE` | Alguém passou a menos de 5 cm nos últimos 10 s | 100% | Verde |
+| `PEDESTRE` | Alguém passou a menos de 5 cm nos últimos 2 s | 100% | Verde |
 | `FAILSAFE` | Noite e mais de 15 s sem comunicação | 100% | Azul |
 | `FALHA` | Desgaste da lâmpada acima de 70% | Mantém o calculado, com cintilação | Vermelho |
 
@@ -96,7 +96,8 @@ deixar a rua mais escura.
 |---|---|---|
 | Piso noturno | 70% | Diretriz CPTED: rua nunca fica escura |
 | Distância de presença | 5 cm | Escala da maquete; é a menor distância que o HC-SR04 mede com confiança (no poste real, alguns metros) |
-| Tempo de presença | 10 s | Luz não "pisca" se a pessoa parar por um instante |
+| Tempo de presença | 2 s | Luz não "pisca" se a pessoa parar por um instante, sem demorar a voltar na maquete |
+| Correção gama | 2,2 | O olho não percebe brilho de forma linear: sem a correção, 70% de PWM parece quase 100%. Com ela, o salto para 100% quando o pedestre passa fica evidente |
 | Limite de desgaste | 70% | Avisar a manutenção antes da lâmpada queimar |
 | Carência do fail-safe | 15 s | Quedas rápidas da rede são ignoradas; quedas longas acionam a segurança |
 | Telemetria | a cada 5 s | Painel atualizado sem sobrecarregar a rede |
@@ -104,7 +105,7 @@ deixar a rua mais escura.
 ### Exemplo de uma noite
 1. **18h, anoitece:** o LDR detecta pouca luz e o poste acende a 70% (`DIMERIZADO`).
 2. **Um pedestre passa:** o ultrassônico detecta e a luz vai a 100% (`PEDESTRE`).
-3. **10 s depois do pedestre sair:** volta a 70%.
+3. **2 s depois do pedestre sair:** volta a 70%.
 4. **A central pede 90%** (por exemplo, para um evento na rua): passa a 90%.
 5. **A rede cai por 3 s:** nada muda, porque está dentro da carência.
 6. **A rede cai por 20 s:** depois de 15 s, o poste vai a 100% (`FAILSAFE`). Quando a rede volta, ele retoma o normal sozinho.
@@ -119,7 +120,7 @@ protegido por **mutex**:
 
 | Tarefa | Prioridade | Período | Responsabilidade |
 |---|---|---|---|
-| `sensores` | 2 | 100 ms | Lê LDR, ultrassônico e potenciômetro |
+| `sensores` | 2 | 60 ms | Lê LDR, ultrassônico e potenciômetro |
 | `controle` | 3 (maior) | 50 ms | Decide o estado e o brilho, aciona os LEDs |
 | `comunicacao` | 1 | 20 ms | Wi-Fi, MQTT, telemetria e comandos |
 
@@ -145,7 +146,7 @@ Exemplo de telemetria:
 | `luz` | Luz ambiente (0 = escuro, 4095 = muito claro) |
 | `noite` | 1 se está de noite |
 | `dist` | Distância medida pelo ultrassônico, em cm (999 = nada detectado) |
-| `presenca` | 1 se houve pedestre nos últimos 10 s |
+| `presenca` | 1 se houve pedestre nos últimos 2 s |
 | `desgaste` | Desgaste da lâmpada, de 0.00 a 1.00 |
 | `pct` | Brilho atual da luz, em % |
 | `estado` | Estado atual (ver tabela de estados) |
