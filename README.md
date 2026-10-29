@@ -36,7 +36,7 @@ Para a disciplina, um **ESP32** representa um poste, com componentes que simulam
 
 | No poste real | No protótipo |
 |---|---|
-| Luminária LED | LED branco com PWM (brilho de 0 a 100%) |
+| Luminária LED | LED RGB aceso em **branco** (R, G e B juntos), com PWM de 0 a 100% |
 | Sensor de luz ambiente | LDR (fotoresistor) |
 | Sensor de presença | Sensor ultrassônico HC-SR04 |
 | Desgaste ou falha da lâmpada | Potenciômetro (girar = "envelhecer" a lâmpada) |
@@ -55,7 +55,7 @@ mesmo painel.
 flowchart LR
     S[Sensores<br/>LDR, ultrassônico,<br/>potenciômetro] --> C{Controle<br/>decide o brilho}
     R[Central via MQTT<br/>potência pedida] --> C
-    C --> L[LED branco<br/>0 a 100%]
+    C --> L[Luminária<br/>RGB em branco, 0 a 100%]
     C --> RGB[LED RGB<br/>cor do estado]
     C --> T[Telemetria MQTT<br/>a cada 5 s]
 ```
@@ -75,7 +75,7 @@ flowchart TD
 ```
 
 Por cima de tudo, se o potenciômetro indicar **desgaste acima de 70%**, o estado passa a
-ser **FALHA**: o RGB fica vermelho e o LED branco **pisca de forma irregular**, imitando uma
+ser **FALHA**: o RGB de status fica vermelho e a luminária **pisca de forma irregular**, imitando uma
 lâmpada com defeito. A potência calculada é mantida, porque uma lâmpada com defeito não deve
 deixar a rua mais escura.
 
@@ -163,8 +163,8 @@ desligar ou perder a conexão sem avisar. Assim a central sabe na hora que um po
 
 | GPIO | Componente |
 |---|---|
-| 18 | LED branco (luminária), resistor de 100 Ω |
-| 16 / 17 / 23 | LED RGB R / G / B (220 / 100 / 100 Ω) |
+| 18 | Luminária: LED RGB com R (220 Ω), G (100 Ω) e B (100 Ω) ligados juntos neste pino, comum no GND |
+| 16 / 17 / 23 | LED RGB **de status** R / G / B (220 / 100 / 100 Ω) |
 | 26 / 27 | HC-SR04 TRIG / ECHO (ECHO com divisor de tensão, ver abaixo) |
 | 34 | Módulo de luz (LDR) de 4 pinos, saída **AO** (o DO fica solto) |
 | 35 | Potenciômetro (simula desgaste) |

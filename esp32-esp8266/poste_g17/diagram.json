@@ -11,19 +11,37 @@
       "attrs": {}
     },
     {
-      "type": "wokwi-led",
+      "type": "wokwi-rgb-led",
       "id": "lum",
       "top": -60,
       "left": 260,
       "attrs": {
-        "color": "white",
+        "common": "cathode",
         "label": "Luminaria"
       }
     },
     {
       "type": "wokwi-resistor",
-      "id": "r1",
+      "id": "rLR",
+      "top": -10,
+      "left": 170,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rLG",
       "top": 20,
+      "left": 170,
+      "attrs": {
+        "value": "100"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rLB",
+      "top": 50,
       "left": 170,
       "attrs": {
         "value": "100"
@@ -104,18 +122,42 @@
     ],
     [
       "esp:18",
-      "r1:1",
+      "rLR:1",
+      "white",
+      []
+    ],
+    [
+      "esp:18",
+      "rLG:1",
+      "white",
+      []
+    ],
+    [
+      "esp:18",
+      "rLB:1",
+      "white",
+      []
+    ],
+    [
+      "rLR:2",
+      "lum:R",
+      "red",
+      []
+    ],
+    [
+      "rLG:2",
+      "lum:G",
       "green",
       []
     ],
     [
-      "r1:2",
-      "lum:A",
-      "green",
+      "rLB:2",
+      "lum:B",
+      "blue",
       []
     ],
     [
-      "lum:C",
+      "lum:COM",
       "esp:GND.2",
       "black",
       []

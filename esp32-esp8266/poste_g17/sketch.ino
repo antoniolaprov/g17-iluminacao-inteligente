@@ -1,6 +1,11 @@
 // =============================================================
-//  Poste Inteligente G17 - v2.4 (FreeRTOS + Wi-Fi + MQTT)
+//  Poste Inteligente G17 - v2.5 (FreeRTOS + Wi-Fi + MQTT)
 //  CESAR School - Sistemas Embarcados
+//
+//  Hardware: a luminaria e um LED RGB aceso em branco. As tres cores
+//  (R, G e B), cada uma com seu resistor, vao juntas no GPIO18, entao
+//  um unico PWM controla o brilho. O segundo LED RGB (16/17/23) e o
+//  indicador de status.
 // =============================================================
 #include <WiFi.h>
 #include <PubSubClient.h>
@@ -25,8 +30,8 @@ char TOPICO_COMANDO[48];
 char TOPICO_STATUS[48];
 
 // ---------------- Pinos ----------------
-const int PINO_LED     = 18;   // luminaria (antes era 25)
-const int PINO_R       = 16;
+const int PINO_LED     = 18;   // luminaria: LED RGB com R, G e B juntos (branco)
+const int PINO_R       = 16;   // LED RGB de status
 const int PINO_G       = 17;
 const int PINO_B       = 23;
 const int PINO_TRIG    = 26;
@@ -349,7 +354,7 @@ void setup() {
   mutexEstado = xSemaphoreCreateMutex();
   mutexSerial = xSemaphoreCreateMutex();
 
-  logf("Poste inteligente G17 v2.4 iniciado (FreeRTOS + MQTT)");
+  logf("Poste inteligente G17 v2.5 iniciado (FreeRTOS + MQTT)");
   logf("[WiFi] conectando...");
 
   //                       funcao              nome          pilha  param prio handle nucleo
