@@ -1,5 +1,5 @@
 // =============================================================
-//  Poste Inteligente G17 - v2.6 (FreeRTOS + Wi-Fi + MQTT)
+//  Poste Inteligente G17 - v2.7 (FreeRTOS + Wi-Fi + MQTT)
 //  CESAR School - Sistemas Embarcados
 //
 //  Hardware: a luminaria e um LED RGB aceso em branco. As tres cores
@@ -12,6 +12,7 @@
 #include <stdarg.h>
 
 #define SIMULACAO 1   // 1 = Wokwi | 0 = placa fisica
+#define USAR_REDE 1   // 1 = Wi-Fi + MQTT | 0 = teste local so com sensores e LEDs (sem fail-safe de rede)
 
 // ---------------- Rede ----------------
 #if SIMULACAO
@@ -161,7 +162,7 @@ void tarefaControle(void* param) {
 
     // Fail-safe so entra se a rede estiver fora por mais que a carencia
     unsigned long tempoSemRede = e.conectado ? 0 : (millis() - e.semRedeDesde);
-    bool failsafe = !e.conectado && tempoSemRede > CARENCIA_FAILSAFE_MS;
+    bool failsafe = USAR_REDE && !e.conectado && tempoSemRede > CARENCIA_FAILSAFE_MS;
 
     int pct;
     const char* nome;
@@ -195,7 +196,10 @@ void tarefaControle(void* param) {
 
     if (millis() - ultimoLog >= 1000) {
       ultimoLog = millis();
-      if (e.conectado) {
+      if (!USAR_REDE) {
+        logf("[%s] luz=%d noite=%d dist=%.0f presenca=%d desgaste=%.2f pct=%d (teste local, sem rede)",
+             nome, e.luz, e.noite, e.dist, e.presenca, e.desgaste, pct);
+      } else if (e.conectado) {
         logf("[%s] luz=%d noite=%d dist=%.0f presenca=%d desgaste=%.2f pct=%d pedido=%d rede=1",
              nome, e.luz, e.noite, e.dist, e.presenca, e.desgaste, pct, e.pedido);
       } else {
@@ -328,6 +332,7 @@ void tarefaComunicacao(void* param) {
 void setup() {
   Serial.begin(115200);
 
+#if USAR_REDE
   // Wi-Fi iniciado antes das tarefas (mais confiavel no Wokwi)
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
@@ -335,6 +340,7 @@ void setup() {
   WiFi.begin(WIFI_SSID, WIFI_SENHA, 6);   // canal 6 acelera no Wokwi
 #else
   WiFi.begin(WIFI_SSID, WIFI_SENHA);
+#endif
 #endif
 
   pinMode(PINO_LED, OUTPUT);
@@ -354,13 +360,19 @@ void setup() {
   mutexEstado = xSemaphoreCreateMutex();
   mutexSerial = xSemaphoreCreateMutex();
 
-  logf("Poste inteligente G17 v2.6 iniciado (FreeRTOS + MQTT)");
+  logf("Poste inteligente G17 v2.7 iniciado (FreeRTOS + MQTT)");
+#if USAR_REDE
   logf("[WiFi] conectando...");
+#else
+  logf("Modo teste local: sem Wi-Fi/MQTT, fail-safe de rede desligado, pedido fixo em %d%%", est.pedido);
+#endif
 
   //                       funcao              nome          pilha  param prio handle nucleo
   xTaskCreatePinnedToCore(tarefaSensores,    "sensores",    4096,  NULL, 2,   NULL,  1);
   xTaskCreatePinnedToCore(tarefaControle,    "controle",    4096,  NULL, 3,   NULL,  1);
+#if USAR_REDE
   xTaskCreatePinnedToCore(tarefaComunicacao, "comunicacao", 8192,  NULL, 1,   NULL,  0);
+#endif
 }
 
 void loop() {
