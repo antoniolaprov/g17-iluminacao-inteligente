@@ -32,3 +32,4 @@ Todos os testes foram feitos no simulador Wokwi em 15/10/2026, com evidência no
 - **Fail-safe sensível demais:** quedas de 2 s do broker levavam a luz a 100%. Adicionada carência de 15 s.
 - **Linhas do Serial misturadas:** duas tarefas escreviam ao mesmo tempo. Adicionado um mutex para o Serial.
 - **Reinício por watchdog ao reconectar (v2.3):** quando o broker público derrubava a conexão, a PubSubClient esperava a resposta do broker por até 15 s sem ceder o processador, e o watchdog (5 s) reiniciava a placa. Corrigido com `setSocketTimeout(3)` e `setKeepAlive(30)`.
+- **Presença falsa na placa física (v2.8):** o HC-SR04 às vezes devolve um eco falso de ~0 cm, e como a presença dura 10 s depois da última detecção, bastava um eco falso a cada poucos segundos para a luz nunca sair de `PEDESTRE`. Leituras abaixo de 2 cm passaram a ser descartadas e o pedestre só é aceito com 2 leituras seguidas abaixo de 50 cm.

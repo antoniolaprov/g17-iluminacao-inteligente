@@ -1,5 +1,5 @@
 // =============================================================
-//  Poste Inteligente G17 - v2.7 (FreeRTOS + Wi-Fi + MQTT)
+//  Poste Inteligente G17 - v2.8 (FreeRTOS + Wi-Fi + MQTT)
 //  CESAR School - Sistemas Embarcados
 //
 //  Hardware: a luminaria e um LED RGB aceso em branco. As tres cores
@@ -98,7 +98,9 @@ float distanciaCm() {
   digitalWrite(PINO_TRIG, LOW);
   unsigned long duracao = pulseIn(PINO_ECHO, HIGH, 30000);
   if (duracao == 0) return 999;   // nada detectado
-  return duracao / 58.0;
+  float cm = duracao / 58.0;
+  if (cm < 2) return 999;         // o HC-SR04 nao mede abaixo de 2 cm: eco falso
+  return cm;
 }
 
 void setRGB(int r, int g, int b) {
@@ -121,13 +123,17 @@ void setConectado(bool valor) {
 void tarefaSensores(void* param) {
   bool jaViuPedestre = false;          // evita o "pedestre fantasma" no boot
   unsigned long ultimaPresenca = 0;
+  int leiturasPerto = 0;               // leituras seguidas abaixo do limite
 
   for (;;) {
     int luz = analogRead(PINO_LDR);
     if (LDR_INVERTIDO) luz = 4095 - luz;
 
     float dist = distanciaCm();
-    if (dist < DIST_PRESENCA_CM) {
+    // So conta pedestre com 2 leituras seguidas perto: um eco falso isolado nao acende a luz
+    if (dist < DIST_PRESENCA_CM) leiturasPerto++;
+    else                         leiturasPerto = 0;
+    if (leiturasPerto >= 2) {
       jaViuPedestre = true;
       ultimaPresenca = millis();
     }
@@ -360,7 +366,7 @@ void setup() {
   mutexEstado = xSemaphoreCreateMutex();
   mutexSerial = xSemaphoreCreateMutex();
 
-  logf("Poste inteligente G17 v2.7 iniciado (FreeRTOS + MQTT)");
+  logf("Poste inteligente G17 v2.8 iniciado (FreeRTOS + MQTT)");
 #if USAR_REDE
   logf("[WiFi] conectando...");
 #else
