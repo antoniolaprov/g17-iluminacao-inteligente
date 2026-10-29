@@ -145,7 +145,7 @@ resistores, ultrassônico **HC-SR04** (precisa de 5 V, ver seção 6) e **módul
 | GPIO | Componente | Ligação |
 |---|---|---|
 | **18** | Luminária (PWM) | **LED RGB aceso em branco**: R → 220 Ω, G → 100 Ω, B → 100 Ω, as três pontas dos resistores juntas no GPIO18; perna comum (a mais comprida) no GND. *O laboratório não tem LED branco. Era o GPIO25; mudou em 27/10 para liberar espaço na placa* |
-| **16 / 17 / 23** | LED RGB R / G / B | via **220 / 100 / 100 Ω** · comum no GND (cátodo comum) |
+| **19 / 21 / 5** | LED RGB de status R / G / B | via **220 / 100 / 100 Ω** · comum no GND (cátodo comum). *Antes 16/17/23; mudou em 29/10 porque eram os pinos livres na montagem* |
 | **26** | Ultrassônico TRIG | direto |
 | **27** | Ultrassônico ECHO | **via divisor de tensão** (1 kΩ em cima, 2 × 1 kΩ embaixo). Sensor alimentado no **VIN (5 V)** |
 | **34** | **Módulo de luz, pino AO** | VCC → **3V3**, GND → GND, **AO → GPIO34**, **DO não usado** |
@@ -273,9 +273,9 @@ Risco alto ou offline → alerta no Telegram (bônus).
   divisor de tensão no ECHO.
 - **Os 3 sensores estão montados e funcionando** (luz, potenciômetro, ultrassônico).
 - **Luminária (29/10):** o laboratório não tem LED branco, então a luminária é um **LED RGB com as
-  três cores juntas no GPIO18** (fica branco). O segundo RGB continua como status (16/17/23).
+  três cores juntas no GPIO18** (fica branco). O segundo RGB continua como status, agora em 19/21/5.
   O firmware não mudou de lógica: um único PWM no GPIO18 controla o brilho.
-- **Próximos:** luminária RGB (GPIO18) e RGB de status. Depois, gravar o firmware completo.
+- **Próximos:** luminária RGB (GPIO18) e RGB de status (19/21/5). Depois, gravar o firmware completo.
 
 **Ao levar o firmware para a placa física:**
 - `#define SIMULACAO 0` e preencher SSID/senha do Wi-Fi (**não commitar a senha real**).

@@ -164,7 +164,7 @@ desligar ou perder a conexão sem avisar. Assim a central sabe na hora que um po
 | GPIO | Componente |
 |---|---|
 | 18 | Luminária: LED RGB com R (220 Ω), G (100 Ω) e B (100 Ω) ligados juntos neste pino, comum no GND |
-| 16 / 17 / 23 | LED RGB **de status** R / G / B (220 / 100 / 100 Ω) |
+| 19 / 21 / 5 | LED RGB **de status** R / G / B (220 / 100 / 100 Ω) |
 | 26 / 27 | HC-SR04 TRIG / ECHO (ECHO com divisor de tensão, ver abaixo) |
 | 34 | Módulo de luz (LDR) de 4 pinos, saída **AO** (o DO fica solto) |
 | 35 | Potenciômetro (simula desgaste) |
