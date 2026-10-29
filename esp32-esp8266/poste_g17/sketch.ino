@@ -1,5 +1,5 @@
 // =============================================================
-//  Poste Inteligente G17 - v2.8 (FreeRTOS + Wi-Fi + MQTT)
+//  Poste Inteligente G17 - v2.9 (FreeRTOS + Wi-Fi + MQTT)
 //  CESAR School - Sistemas Embarcados
 //
 //  Hardware: a luminaria e um LED RGB aceso em branco. As tres cores
@@ -50,7 +50,7 @@ const bool LDR_INVERTIDO = false;   // modulo fisico: mais luz = numero maior (t
 const int  LIMIAR_NOITE  = 2000;    // sala clara ~4095, dedo em cima ~0
 #endif
 const bool  RGB_ANODO_COMUM           = false;
-const float DIST_PRESENCA_CM          = 50;
+const float DIST_PRESENCA_CM          = 15;     // escala da maquete (antes 50 cm)
 const unsigned long TEMPO_PRESENCA_MS = 10000;
 const int   PISO_PCT                  = 70;     // piso CPTED
 const float LIMIAR_DESGASTE           = 0.70;
@@ -366,7 +366,7 @@ void setup() {
   mutexEstado = xSemaphoreCreateMutex();
   mutexSerial = xSemaphoreCreateMutex();
 
-  logf("Poste inteligente G17 v2.8 iniciado (FreeRTOS + MQTT)");
+  logf("Poste inteligente G17 v2.9 iniciado (FreeRTOS + MQTT)");
 #if USAR_REDE
   logf("[WiFi] conectando...");
 #else

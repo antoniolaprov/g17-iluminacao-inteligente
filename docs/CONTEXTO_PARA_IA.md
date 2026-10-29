@@ -216,12 +216,12 @@ ou `baixa`).
 O controle roda a cada 50 ms e segue esta prioridade:
 1. **De dia** → `DIA`, 0%.
 2. **Sem rede há mais de 15 s** → `FAILSAFE`, 100%, RGB azul.
-3. **Pedestre a menos de 50 cm nos últimos 10 s** → `PEDESTRE`, 100%, RGB verde.
+3. **Pedestre a menos de 15 cm nos últimos 10 s** → `PEDESTRE`, 100%, RGB verde.
 4. **Senão** → `DIMERIZADO`, `max(pedido da central, 70%)`, RGB amarelo. Se o pedido for 100% → `NOITE`, RGB verde.
 
 Por cima de tudo: **desgaste > 0,70** → `FALHA`, RGB vermelho e LED cintilando (o brilho calculado é mantido).
 
-**Parâmetros:** piso CPTED 70% · presença a 50 cm por 10 s · desgaste 0,70 · carência do fail-safe
+**Parâmetros:** piso CPTED 70% · presença a 15 cm por 10 s (escala da maquete; era 50 cm) · ecos < 2 cm descartados · 2 leituras seguidas · desgaste 0,70 · carência do fail-safe
 15 s · telemetria a cada 5 s · potência pedida inicial 40%.
 
 **FreeRTOS (3 tarefas + mutex do estado + mutex do Serial):**

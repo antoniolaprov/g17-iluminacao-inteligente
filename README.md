@@ -86,7 +86,7 @@ deixar a rua mais escura.
 | `DIA` | Há luz ambiente suficiente | 0% | Verde |
 | `DIMERIZADO` | Noite, rua vazia | Pedido da central, nunca abaixo de 70% | Amarelo |
 | `NOITE` | Noite, rua vazia, central pediu 100% | 100% | Verde |
-| `PEDESTRE` | Alguém passou a menos de 50 cm nos últimos 10 s | 100% | Verde |
+| `PEDESTRE` | Alguém passou a menos de 15 cm nos últimos 10 s | 100% | Verde |
 | `FAILSAFE` | Noite e mais de 15 s sem comunicação | 100% | Azul |
 | `FALHA` | Desgaste da lâmpada acima de 70% | Mantém o calculado, com cintilação | Vermelho |
 
@@ -95,7 +95,7 @@ deixar a rua mais escura.
 | Parâmetro | Valor | Por quê |
 |---|---|---|
 | Piso noturno | 70% | Diretriz CPTED: rua nunca fica escura |
-| Distância de presença | 50 cm | Escala do protótipo (no poste real, alguns metros) |
+| Distância de presença | 15 cm | Escala da maquete (no poste real, alguns metros) |
 | Tempo de presença | 10 s | Luz não "pisca" se a pessoa parar por um instante |
 | Limite de desgaste | 70% | Avisar a manutenção antes da lâmpada queimar |
 | Carência do fail-safe | 15 s | Quedas rápidas da rede são ignoradas; quedas longas acionam a segurança |
