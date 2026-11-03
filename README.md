@@ -167,7 +167,7 @@ desligar ou perder a conexão sem avisar. Assim a central sabe na hora que um po
 | 18 | Luminária: LED RGB com R (220 Ω), G (100 Ω) e B (100 Ω) ligados juntos neste pino, comum no GND |
 | 19 / 21 / 5 | LED RGB **de status** R / G / B (220 / 100 / 100 Ω) |
 | 26 / 27 | HC-SR04 TRIG / ECHO (ECHO com divisor de tensão, ver abaixo) |
-| 34 | Módulo de luz (LDR) de 4 pinos, saída **AO** (o DO fica solto) |
+| 34 | Sensor de luz de 2 pernas em divisor com 10 kΩ: `3V3 → sensor → GPIO34 → 10 kΩ → GND` (no Wokwi: módulo de 4 pinos, pino AO) |
 | 35 | Potenciômetro (simula desgaste) |
 | 2 | LED da placa (aceso = conectado à central) |
 

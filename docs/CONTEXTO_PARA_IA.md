@@ -148,7 +148,7 @@ resistores, ultrassônico **HC-SR04** (precisa de 5 V, ver seção 6) e **módul
 | **19 / 21 / 5** | LED RGB de status R / G / B | via **220 / 100 / 100 Ω** · comum no GND (cátodo comum). *Antes 16/17/23; mudou em 29/10 porque eram os pinos livres na montagem* |
 | **26** | Ultrassônico TRIG | direto |
 | **27** | Ultrassônico ECHO | **via divisor de tensão** (1 kΩ em cima, 2 × 1 kΩ embaixo). Sensor alimentado no **VIN (5 V)** |
-| **34** | **Módulo de luz, pino AO** | VCC → **3V3**, GND → GND, **AO → GPIO34**, **DO não usado** |
+| **34** | **Sensor de luz de 2 pernas** (indicado pelo professor em 03/11) | Divisor: **3V3 → sensor → GPIO34 → 10 kΩ → GND**. O fio do GPIO34 sai do ponto entre o sensor e o resistor. *Antes era o módulo de 4 pinos (AO → GPIO34). No Wokwi continua o módulo, que por dentro é o mesmo LDR + 10 kΩ* |
 | **35** | Potenciômetro (desgaste) | pontas em 3V3 e GND, **meio no GPIO35** |
 | **2** | LED azul da placa | aceso = conectado à central |
 
