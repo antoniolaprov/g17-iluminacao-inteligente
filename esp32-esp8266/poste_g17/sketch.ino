@@ -46,8 +46,8 @@ const int PINO_ONBOARD = 2;
 const bool LDR_INVERTIDO = true;
 const int  LIMIAR_NOITE  = 2000;
 #else
-const bool LDR_INVERTIDO = false;   // modulo fisico: mais luz = numero maior (testado em 27/10)
-const int  LIMIAR_NOITE  = 2000;    // sala clara ~4095, dedo em cima ~0
+const bool LDR_INVERTIDO = false;   // sensor de 2 pernas + 10k: mais luz = numero maior
+const int  LIMIAR_NOITE  = 2000;    // medido em 03/11: sala ~3200, dedo ~400, lanterna 4095
 #endif
 const bool  RGB_ANODO_COMUM           = false;
 const float DIST_PRESENCA_CM          = 5;      // escala da maquete (menor distancia confiavel do HC-SR04)

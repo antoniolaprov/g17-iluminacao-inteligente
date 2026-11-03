@@ -268,6 +268,10 @@ Risco alto ou offline → alerta no Telegram (bônus).
   sketch que imprime os dois valores.
 - **Calibração do LDR (27/10):** sala clara ≈ 4095 (satura), dedo em cima ≈ 0. Módulo com mais luz =
   número maior, então `LDR_INVERTIDO = false` e `LIMIAR_NOITE = 2000` na placa física.
+- **Troca do sensor de luz (03/11):** a pedido do professor, o módulo de 4 pinos foi trocado por um
+  **sensor de 2 pernas** em divisor com 10 kΩ (`3V3 → sensor → GPIO34 → 10 kΩ → GND`). Continua
+  *mais luz = número maior*. Calibração: **sala ≈ 3200, dedo ≈ 400, lanterna = 4095**.
+  `LIMIAR_NOITE = 2000` foi mantido (fica no meio entre sala e dedo).
 - **Potenciômetro:** chegou a ficar sempre em 0 porque faltava o fio do **VCC**. Corrigido.
 - **Ultrassônico (27/10):** HC-SR04 não respondia em 3,3 V. Passou a funcionar alimentado no VIN, com
   divisor de tensão no ECHO.
@@ -280,7 +284,7 @@ Risco alto ou offline → alerta no Telegram (bônus).
 **Ao levar o firmware para a placa física:**
 - `#define SIMULACAO 0` e preencher SSID/senha do Wi-Fi (**não commitar a senha real**).
 - No bloco `#else` (placa física), manter `LDR_INVERTIDO = false` (o módulo físico dá mais luz =
-  número maior, ao contrário do Wokwi). `LIMIAR_NOITE = 2000` funciona: sala clara ≈ 4095 e dedo ≈ 0.
+  número maior, ao contrário do Wokwi). `LIMIAR_NOITE = 2000` funciona: com o sensor de 2 pernas, sala ≈ 3200 e dedo ≈ 400.
 - O PlatformIO exige `#include <Arduino.h>` no topo e a biblioteca no `platformio.ini`:
   `lib_deps = knolleary/PubSubClient`.
 - O firmware atual está num único arquivo. A estrutura em vários arquivos (`config.h`,
