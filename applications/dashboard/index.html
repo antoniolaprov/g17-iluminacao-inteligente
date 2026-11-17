@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Central de Postes G17</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f4f3f0;
+    --surface: #fcfcfb;
+    --border: #e4e3df;
+    --text: #0b0b0b;
+    --text-2: #52514e;
+    --text-3: #7a7974;
+    --series: #2a78d6;
+    --ref: #9a9993;
+    --good: #0ca30c;
+    --warning: #fab219;
+    --critical: #d03b3b;
+    --failsafe: #2a78d6;
+    --idle: #9a9993;
+    --lamp: #ffcf4d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page: #111110;
+      --surface: #1a1a19;
+      --border: #33332f;
+      --text: #f0efec;
+      --text-2: #c3c2b7;
+      --text-3: #93928a;
+      --series: #3987e5;
+      --ref: #6f6e68;
+      --failsafe: #3987e5;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #111110;
+    --surface: #1a1a19;
+    --border: #33332f;
+    --text: #f0efec;
+    --text-2: #c3c2b7;
+    --text-3: #93928a;
+    --series: #3987e5;
+    --ref: #6f6e68;
+    --failsafe: #3987e5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 40px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0; }
+  .sub { color: var(--text-2); font-size: 14px; }
+  h2 { font-size: 13px; font-weight: 600; color: var(--text-2); margin: 0 0 10px; text-transform: none; letter-spacing: .01em; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; min-width: 0; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; font-size: 13px; color: var(--text-2); background: var(--surface); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--idle); flex: none; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 6px 12px; }
+  button:hover { border-color: var(--text-3); }
+  button.primary { background: var(--series); border-color: var(--series); color: #fff; font-weight: 600; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  input[type=text] { border: 1px solid var(--border); background: var(--page); border-radius: 8px; padding: 6px 10px; width: 100%; }
+  details.cfg { margin-bottom: 16px; }
+  details.cfg summary { cursor: pointer; color: var(--text-2); font-size: 14px; }
+  .cfg-grid { display: grid; grid-template-columns: 2fr 1fr auto; gap: 8px; margin-top: 10px; align-items: end; }
+  .cfg-grid label { font-size: 12px; color: var(--text-2); display: grid; gap: 4px; }
+  .postes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .poste-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 10px; }
+  .poste-chip[aria-pressed="true"] { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+  .poste-chip small { color: var(--text-2); }
+  .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; }
+  .span-4 { grid-column: span 4; } .span-8 { grid-column: span 8; } .span-6 { grid-column: span 6; } .span-12 { grid-column: span 12; }
+  .estado { display: grid; grid-template-columns: 110px 1fr; gap: 16px; align-items: center; }
+  .estado-nome { display: inline-flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 700; }
+  .estado-desc { color: var(--text-2); font-size: 14px; margin-top: 2px; }
+  .big { font-size: 40px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .big small { font-size: 16px; font-weight: 500; color: var(--text-2); }
+  .meta { color: var(--text-3); font-size: 13px; margin-top: 6px; }
+  .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .tile .v { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .tile .v small { font-size: 14px; font-weight: 500; color: var(--text-2); }
+  .tile .d { color: var(--text-2); font-size: 13px; }
+  .bar { position: relative; height: 8px; border-radius: 4px; background: var(--border); margin-top: 8px; overflow: visible; }
+  .bar > span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--series); }
+  .bar > i { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--text-2); }
+  .chart-box { position: relative; height: 220px; }
+  .cmd-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .cmd-row input[type=range] { flex: 1 1 200px; accent-color: var(--series); }
+  .cmd-val { font-size: 24px; font-weight: 700; min-width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
+  .hint { color: var(--text-2); font-size: 13px; margin-top: 10px; }
+  .log { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow: auto; font-size: 13px; }
+  .log li { display: flex; gap: 10px; padding: 6px 0; border-top: 1px solid var(--border); }
+  .log li:first-child { border-top: 0; }
+  .log time { color: var(--text-3); font-variant-numeric: tabular-nums; flex: none; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--text-2); font-weight: 600; border-top: 0; }
+  .table-wrap { overflow-x: auto; }
+  .empty { color: var(--text-3); font-size: 14px; padding: 8px 0; }
+  .lamp-glow { transition: opacity .25s; }
+  .falha .lamp-glow { animation: pisca .7s steps(2) infinite; }
+  @keyframes pisca { 50% { opacity: .15; } }
+  @media (prefers-reduced-motion: reduce) { .falha .lamp-glow { animation: none; } }
+  @media (max-width: 900px) {
+    .span-4, .span-8, .span-6 { grid-column: span 12; }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 520px) {
+    .cfg-grid { grid-template-columns: 1fr; }
+    .estado { grid-template-columns: 80px 1fr; }
+    .big { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Central de Postes G17</h1>
+      <div class="sub">Iluminação pública inteligente · Recife · telemetria MQTT em tempo real</div>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+      <span class="pill" id="broker-pill"><span class="dot" id="broker-dot"></span><span id="broker-txt">Desconectado</span></span>
+      <button id="theme-btn" type="button" aria-label="Alternar tema claro/escuro">Tema</button>
+    </div>
+  </header>
+
+  <details class="cfg" id="cfg">
+    <summary>Configuração do broker</summary>
+    <div class="cfg-grid">
+      <label>Endereço WebSocket do broker
+        <input type="text" id="cfg-url" spellcheck="false">
+      </label>
+      <label>Prefixo dos tópicos
+        <input type="text" id="cfg-prefix" spellcheck="false">
+      </label>
+      <button class="primary" id="cfg-btn" type="button">Conectar</button>
+    </div>
+    <div class="hint">HiveMQ público: <code>wss://broker.hivemq.com:8884/mqtt</code>. Mosquitto local (com listener WebSocket): <code>ws://localhost:9001</code>.</div>
+  </details>
+
+  <div class="postes" id="postes" role="group" aria-label="Postes">
+    <div class="empty" id="postes-empty">Aguardando telemetria dos postes...</div>
+  </div>
+
+  <div class="grid">
+    <section class="card span-4" aria-labelledby="t-estado">
+      <h2 id="t-estado">Estado do poste <span id="sel-id"></span></h2>
+      <div class="estado" id="estado-box">
+        <svg viewBox="0 0 110 150" width="110" height="150" role="img" aria-label="Luminária">
+          <circle class="lamp-glow" id="lamp-glow" cx="70" cy="40" r="30" fill="var(--lamp)" opacity="0"/>
+          <rect x="22" y="40" width="7" height="100" rx="2" fill="var(--text-3)"/>
+          <path d="M25 42 Q25 22 50 22 L70 22" fill="none" stroke="var(--text-3)" stroke-width="5" stroke-linecap="round"/>
+          <rect x="56" y="22" width="28" height="9" rx="3" fill="var(--text-2)"/>
+          <rect x="12" y="138" width="28" height="6" rx="2" fill="var(--text-3)"/>
+        </svg>
+        <div>
+          <div class="estado-nome"><span class="dot" id="estado-dot" style="width:12px;height:12px"></span><span id="estado-nome">—</span></div>
+          <div class="estado-desc" id="estado-desc">Sem dados ainda</div>
+          <div class="big" style="margin-top:10px"><span id="pct">—</span><small> % de brilho</small></div>
+          <div class="meta" id="meta">—</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="span-8" aria-label="Leituras">
+      <div class="tiles">
+        <div class="card tile"><h2>Luz ambiente</h2><div class="v" id="v-luz">—</div><div class="d" id="d-luz">0 a 4095 · noite abaixo de 2000</div></div>
+        <div class="card tile"><h2>Pedestre</h2><div class="v" id="v-ped">—</div><div class="d" id="d-ped">distância do sensor</div></div>
+        <div class="card tile"><h2>Desgaste da lâmpada</h2><div class="v" id="v-desg">—</div>
+          <div class="bar" aria-hidden="true"><span id="b-desg" style="width:0"></span><i style="left:70%"></i></div>
+          <div class="d" style="margin-top:6px">falha acima de 0,70</div></div>
+        <div class="card tile"><h2>Pedido da central</h2><div class="v" id="v-pedido">—</div><div class="d">piso de 70% à noite</div></div>
+        <div class="card tile"><h2>Economia na sessão</h2><div class="v" id="v-eco">—</div><div class="d">vs. lâmpada sempre a 100% à noite</div></div>
+        <div class="card tile"><h2>Tempo ligado</h2><div class="v" id="v-up">—</div><div class="d" id="d-online">status do poste</div></div>
+      </div>
+    </section>
+
+    <section class="card span-6" aria-labelledby="t-c1">
+      <h2 id="t-c1">Brilho da luminária (%)</h2>
+      <div class="chart-box"><canvas id="c-pct" aria-label="Gráfico do brilho da luminária ao longo do tempo"></canvas></div>
+    </section>
+    <section class="card span-6" aria-labelledby="t-c2">
+      <h2 id="t-c2">Luz ambiente (leitura do sensor)</h2>
+      <div class="chart-box"><canvas id="c-luz" aria-label="Gráfico da luz ambiente ao longo do tempo"></canvas></div>
+    </section>
+
+    <section class="card span-6" aria-labelledby="t-cmd">
+      <h2 id="t-cmd">Comando de potência</h2>
+      <div class="cmd-row">
+        <input type="range" id="cmd-range" min="0" max="100" step="5" value="90" aria-label="Potência solicitada">
+        <span class="cmd-val"><span id="cmd-val">90</span>%</span>
+        <button class="primary" id="cmd-send" type="button" disabled>Enviar</button>
+      </div>
+      <div class="cmd-row" style="margin-top:10px">
+        <button type="button" data-p="40">40%</button>
+        <button type="button" data-p="70">70%</button>
+        <button type="button" data-p="90">90%</button>
+        <button type="button" data-p="100">100%</button>
+      </div>
+      <div class="hint">Enviado para <code id="cmd-topic">—</code>. À noite o poste nunca fica abaixo de 70% (piso de segurança); de dia a luz fica apagada; pedestre e fail-safe sempre vão a 100%.</div>
+    </section>
+
+    <section class="card span-6" aria-labelledby="t-log">
+      <h2 id="t-log">Eventos</h2>
+      <ul class="log" id="log"><li class="empty">Nenhum evento ainda</li></ul>
+    </section>
+
+    <section class="card span-12" aria-labelledby="t-tab">
+      <h2 id="t-tab">Últimas leituras</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Hora</th><th>Estado</th><th>Brilho</th><th>Luz</th><th>Distância</th><th>Presença</th><th>Desgaste</th><th>Pedido</th></tr></thead>
+          <tbody id="tab"><tr><td colspan="8" class="empty">Sem leituras</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const PADRAO = { url: 'wss://broker.hivemq.com:8884/mqtt', prefix: 'g17/poste' };
+const JANELA_MS = 10 * 60 * 1000;   // historico dos graficos: 10 min
+const SEM_DADOS_MS = 15000;         // telemetria chega a cada 5 s
+
+const ESTADOS = {
+  DIA:        { cor: '--good',     icone: '☀', desc: 'Dia: luminária apagada' },
+  DIMERIZADO: { cor: '--warning',  icone: '◐', desc: 'Noite sem movimento: economizando' },
+  PEDESTRE:   { cor: '--good',     icone: '🚶', desc: 'Pedestre detectado: luz a 100%' },
+  NOITE:      { cor: '--good',     icone: '☾', desc: 'Noite: potência pedida pela central' },
+  FALHA:      { cor: '--critical', icone: '⚠', desc: 'Falha na lâmpada: chamar manutenção' },
+  FAILSAFE:   { cor: '--failsafe', icone: '⛨', desc: 'Sem central: 100% por segurança' },
+  INICIANDO:  { cor: '--idle',     icone: '…', desc: 'Iniciando' },
+};
+
+const $ = id => document.getElementById(id);
+const css = nome => getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
+const hora = t => new Date(t).toLocaleTimeString('pt-BR');
+const fmt = (n, d = 0) => Number(n).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+function lerConfig() {
+  try { return Object.assign({}, PADRAO, JSON.parse(localStorage.getItem('g17-cfg') || '{}')); }
+  catch { return { ...PADRAO }; }
+}
+function salvarConfig(c) { try { localStorage.setItem('g17-cfg', JSON.stringify(c)); } catch {} }
+
+let cfg = lerConfig();
+let cliente = null;
+let selecionado = null;
+const postes = {};   // id -> { ultimo, recebidoEm, status, hist: [], somaPct, nNoite }
+
+// ---------------- Graficos ----------------
+const linhaRef = {
+  id: 'linhaRef',
+  afterDatasetsDraw(chart, _a, opts) {
+    if (opts.valor == null) return;
+    const { ctx, chartArea: a, scales: { y } } = chart;
+    const py = y.getPixelForValue(opts.valor);
+    ctx.save();
+    ctx.strokeStyle = css('--ref'); ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(a.left, py); ctx.lineTo(a.right, py); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle = css('--text-2'); ctx.font = '12px system-ui, sans-serif';
+    ctx.textAlign = 'right'; ctx.fillText(opts.rotulo, a.right - 4, py - 6);
+    ctx.restore();
+  }
+};
+
+function criarGrafico(canvas, max, ref, rotulo, sufixo) {
+  return new Chart(canvas, {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0.25, stepped: false }] },
+    options: {
+      animation: false, responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        linhaRef: { valor: ref, rotulo },
+        tooltip: { callbacks: { label: c => ` ${fmt(c.parsed.y)}${sufixo}` } },
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 6, maxRotation: 0 }, grid: { display: false } },
+        y: { min: 0, max, ticks: { maxTicksLimit: 5 } },
+      },
+    },
+    plugins: [linhaRef],
+  });
+}
+const gPct = criarGrafico($('c-pct'), 100, 70, 'piso 70%', '%');
+const gLuz = criarGrafico($('c-luz'), 4095, 2000, 'limite noite', '');
+
+function pintarGraficos() {
+  for (const g of [gPct, gLuz]) {
+    const ds = g.data.datasets[0];
+    ds.borderColor = css('--series'); ds.pointHoverBackgroundColor = css('--series');
+    ds.pointHoverBorderColor = css('--surface'); ds.pointHoverBorderWidth = 2;
+    for (const eixo of ['x', 'y']) {
+      g.options.scales[eixo].ticks.color = css('--text-3');
+      g.options.scales[eixo].border = { color: css('--border') };
+    }
+    g.options.scales.y.grid = { color: css('--border') };
+    g.update('none');
+  }
+}
+
+function atualizarGraficos() {
+  const p = postes[selecionado];
+  const h = p ? p.hist : [];
+  const labels = h.map(r => hora(r.t));
+  gPct.data.labels = labels; gPct.data.datasets[0].data = h.map(r => r.pct);
+  gLuz.data.labels = labels; gLuz.data.datasets[0].data = h.map(r => r.luz);
+  gPct.update('none'); gLuz.update('none');
+}
+
+// ---------------- Tema ----------------
+$('theme-btn').addEventListener('click', () => {
+  const escuro = document.documentElement.dataset.theme
+    ? document.documentElement.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.dataset.theme = escuro ? 'light' : 'dark';
+  try { localStorage.setItem('g17-tema', document.documentElement.dataset.theme); } catch {}
+  pintarGraficos(); renderizar();
+});
+try { const t = localStorage.getItem('g17-tema'); if (t) document.documentElement.dataset.theme = t; } catch {}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { pintarGraficos(); renderizar(); });
+pintarGraficos();
+
+// ---------------- Eventos ----------------
+function registrar(texto) {
+  const log = $('log');
+  if (log.querySelector('.empty')) log.innerHTML = '';
+  const li = document.createElement('li');
+  li.innerHTML = `<time>${hora(Date.now())}</time><span></span>`;
+  li.lastChild.textContent = texto;
+  log.prepend(li);
+  while (log.children.length > 60) log.lastChild.remove();
+}
+
+// ---------------- MQTT ----------------
+function conectar() {
+  if (cliente) { cliente.end(true); cliente = null; }
+  setBroker('conectando');
+  cliente = mqtt.connect(cfg.url, {
+    clientId: 'g17-dash-' + Math.random().toString(16).slice(2, 8),
+    clean: true, reconnectPeriod: 3000, connectTimeout: 8000,
+  });
+  cliente.on('connect', () => {
+    setBroker('ok');
+    registrar('Conectado ao broker');
+    cliente.subscribe([`${cfg.prefix}/+/telemetria`, `${cfg.prefix}/+/status`]);
+  });
+  cliente.on('reconnect', () => setBroker('conectando'));
+  cliente.on('offline', () => setBroker('erro'));
+  cliente.on('error', e => { setBroker('erro'); registrar('Erro no broker: ' + e.message); });
+  cliente.on('message', aoReceber);
+}
+
+function setBroker(s) {
+  const mapa = { ok: ['--good', 'Broker conectado'], conectando: ['--warning', 'Conectando ao broker...'], erro: ['--critical', 'Broker desconectado'] };
+  const [cor, txt] = mapa[s];
+  $('broker-dot').style.background = css(cor);
+  $('broker-txt').textContent = txt;
+  $('cmd-send').disabled = !(s === 'ok' && selecionado);
+}
+
+function poste(id) {
+  return postes[id] ||= { ultimo: null, recebidoEm: 0, status: null, hist: [], somaPct: 0, nNoite: 0 };
+}
+
+function aoReceber(topico, payload) {
+  const partes = topico.split('/');
+  const tipo = partes.pop(), id = partes.pop();
+  const texto = payload.toString();
+  const p = poste(id);
+
+  if (tipo === 'status') {
+    if (p.ultimo && p.status !== texto && situacao(p) !== 'online') registrar(`Poste ${id} ficou ${texto}`);
+    p.status = texto;
+  } else if (tipo === 'telemetria') {
+    let d;
+    try { d = JSON.parse(texto); } catch { return; }
+    if (p.ultimo && p.ultimo.estado !== d.estado) registrar(`Poste ${id}: ${p.ultimo.estado} → ${d.estado}`);
+    if (!p.ultimo) registrar(`Poste ${id} enviando telemetria`);
+    p.ultimo = d; p.recebidoEm = Date.now();
+    // Telemetria recente vale mais que o "offline" retido: o LWT de uma conexao antiga
+    // pode chegar depois do "online" quando a placa reinicia
+    p.status = 'online';
+    p.hist.push({ t: p.recebidoEm, ...d });
+    while (p.hist.length && p.hist[0].t < Date.now() - JANELA_MS) p.hist.shift();
+    if (d.noite) { p.somaPct += d.pct; p.nNoite++; }
+  }
+  if (!selecionado) selecionar(id); else { renderizarPostes(); if (id === selecionado) { renderizar(); atualizarGraficos(); } }
+}
+
+function selecionar(id) {
+  selecionado = id;
+  $('cmd-topic').textContent = `${cfg.prefix}/${id}/comando`;
+  setBroker(cliente && cliente.connected ? 'ok' : 'erro');
+  renderizarPostes(); renderizar(); atualizarGraficos();
+}
+
+// ---------------- Comando ----------------
+function enviar(v) {
+  if (!cliente || !cliente.connected || !selecionado) return;
+  const topico = `${cfg.prefix}/${selecionado}/comando`;
+  cliente.publish(topico, JSON.stringify({ potencia: v }), { qos: 1 });
+  registrar(`Comando enviado ao poste ${selecionado}: potência ${v}%`);
+}
+$('cmd-range').addEventListener('input', e => $('cmd-val').textContent = e.target.value);
+$('cmd-send').addEventListener('click', () => enviar(+$('cmd-range').value));
+document.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => {
+  $('cmd-range').value = b.dataset.p; $('cmd-val').textContent = b.dataset.p; enviar(+b.dataset.p);
+}));
+
+// ---------------- Tela ----------------
+function situacao(p) {
+  if (!p || !p.ultimo) return 'sem dados';
+  if (Date.now() - p.recebidoEm <= SEM_DADOS_MS) return 'online';
+  return p.status === 'offline' ? 'offline' : 'sem dados';
+}
+
+function renderizarPostes() {
+  const box = $('postes');
+  const ids = Object.keys(postes).sort();
+  if (!ids.length) return;
+  box.innerHTML = '';
+  for (const id of ids) {
+    const p = postes[id];
+    const est = p.ultimo ? p.ultimo.estado : '—';
+    const sit = situacao(p);
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'poste-chip';
+    b.setAttribute('aria-pressed', id === selecionado);
+    const cor = sit === 'online' ? css((ESTADOS[est] || ESTADOS.INICIANDO).cor) : css('--idle');
+    b.innerHTML = `<span class="dot" style="background:${cor}"></span><strong></strong><small></small>`;
+    b.querySelector('strong').textContent = id;
+    b.querySelector('small').textContent = sit === 'online' ? est : sit;
+    b.addEventListener('click', () => selecionar(id));
+    box.appendChild(b);
+  }
+}
+
+function renderizar() {
+  const p = postes[selecionado];
+  $('sel-id').textContent = selecionado ? selecionado : '';
+  if (!p || !p.ultimo) return;
+  const d = p.ultimo, sit = situacao(p);
+  const e = ESTADOS[d.estado] || ESTADOS.INICIANDO;
+
+  $('estado-nome').textContent = `${e.icone} ${d.estado}`;
+  $('estado-dot').style.background = sit === 'online' ? css(e.cor) : css('--idle');
+  $('estado-desc').textContent = sit === 'online' ? e.desc : `Poste ${sit}: mostrando a última leitura`;
+  $('pct').textContent = fmt(d.pct);
+  $('lamp-glow').setAttribute('opacity', sit === 'online' ? Math.pow(d.pct / 100, 2.2).toFixed(2) : 0);
+  $('estado-box').classList.toggle('falha', d.estado === 'FALHA' && sit === 'online');
+
+  $('v-luz').innerHTML = `${fmt(d.luz)} <small>${d.noite ? 'noite' : 'dia'}</small>`;
+  $('v-ped').innerHTML = `${d.presenca ? 'Sim' : 'Não'} <small>${d.dist >= 999 ? 'nada perto' : fmt(d.dist) + ' cm'}</small>`;
+  $('v-desg').textContent = fmt(d.desgaste, 2) + (d.desgaste > 0.70 ? ' · falha' : '');
+  $('b-desg').style.width = Math.min(100, d.desgaste * 100) + '%';
+  $('b-desg').style.background = d.desgaste > 0.70 ? css('--critical') : css('--series');
+  $('v-pedido').innerHTML = `${fmt(d.pedido)}<small>%</small>`;
+  $('v-eco').innerHTML = p.nNoite ? `${fmt(100 - p.somaPct / p.nNoite)}<small>%</small>` : '— <small>só conta à noite</small>';
+  const s = d.uptime, hh = Math.floor(s / 3600), mm = Math.floor(s % 3600 / 60), ss = s % 60;
+  $('v-up').textContent = hh ? `${hh}h ${mm}min` : `${mm}min ${ss}s`;
+  $('d-online').textContent = `poste ${sit}`;
+
+  const tab = $('tab');
+  tab.innerHTML = '';
+  for (const r of p.hist.slice(-10).reverse()) {
+    const tr = document.createElement('tr');
+    [hora(r.t), r.estado, r.pct + '%', r.luz, r.dist >= 999 ? '—' : fmt(r.dist) + ' cm', r.presenca ? 'sim' : 'não', fmt(r.desgaste, 2), r.pedido + '%']
+      .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+    tab.appendChild(tr);
+  }
+}
+
+setInterval(() => {
+  const p = postes[selecionado];
+  if (p && p.recebidoEm) $('meta').textContent = `Última leitura há ${Math.round((Date.now() - p.recebidoEm) / 1000)} s`;
+  renderizarPostes(); renderizar();
+}, 1000);
+
+// ---------------- Configuracao ----------------
+$('cfg-url').value = cfg.url;
+$('cfg-prefix').value = cfg.prefix;
+$('cfg-btn').addEventListener('click', () => {
+  cfg = { url: $('cfg-url').value.trim(), prefix: $('cfg-prefix').value.trim().replace(/\/$/, '') };
+  salvarConfig(cfg);
+  for (const k in postes) delete postes[k];
+  selecionado = null;
+  $('postes').innerHTML = '<div class="empty">Aguardando telemetria dos postes...</div>';
+  atualizarGraficos();
+  conectar();
+});
+
+conectar();
+</script>
+</body>
+</html>
