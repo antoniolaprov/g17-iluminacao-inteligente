@@ -199,6 +199,7 @@ funcionam enquanto o Wi-Fi está ligado.
 | `applications/` | Broker, banco de dados, dashboard e simulador *(em desenvolvimento)* |
 | `schematics/` | Esquemáticos e fotos da montagem |
 | `docs/` | Documentação e [registro de testes](docs/testes_wokwi.md) |
+| [`MACHINE_LEARNING.md`](MACHINE_LEARNING.md) | Plano da parte de machine learning (dados da Emlurb, modelo de risco e integração por MQTT) |
 
 ---
 
