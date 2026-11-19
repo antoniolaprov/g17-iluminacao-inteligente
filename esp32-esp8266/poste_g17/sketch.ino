@@ -1,5 +1,5 @@
 // =============================================================
-//  Poste Inteligente G17 - v2.11 (FreeRTOS + Wi-Fi + MQTT)
+//  Poste Inteligente G17 - v2.12 (FreeRTOS + Wi-Fi + MQTT)
 //  CESAR School - Sistemas Embarcados
 //
 //  Hardware: a luminaria e um mini poste de maquete (LED 3 V) no GPIO18,
@@ -45,9 +45,11 @@ const int PINO_ONBOARD = 2;
 #if SIMULACAO
 const bool LDR_INVERTIDO = true;
 const int  LIMIAR_NOITE  = 2000;
+const int  LIMIAR_DIA    = 2200;
 #else
 const bool LDR_INVERTIDO = false;   // sensor de 2 pernas + 10k: mais luz = numero maior
-const int  LIMIAR_NOITE  = 2000;    // medido em 03/11: sala ~3200, dedo ~400, lanterna 4095
+const int  LIMIAR_NOITE  = 2500;    // escurece abaixo disso (19/11: sala ~3000, sombra da mao ~2200, dedo ~400)
+const int  LIMIAR_DIA    = 2700;    // so volta a ser dia acima disso (histerese: nao pisca perto do limite)
 #endif
 const bool  RGB_ANODO_COMUM           = false;
 const float DIST_PRESENCA_CM          = 5;      // escala da maquete (menor distancia confiavel do HC-SR04)
@@ -125,10 +127,14 @@ void tarefaSensores(void* param) {
   bool jaViuPedestre = false;          // evita o "pedestre fantasma" no boot
   unsigned long ultimaPresenca = 0;
   int leiturasPerto = 0;               // leituras seguidas abaixo do limite
+  bool noite = false;
 
   for (;;) {
     int luz = analogRead(PINO_LDR);
     if (LDR_INVERTIDO) luz = 4095 - luz;
+    // Histerese: escurece abaixo de LIMIAR_NOITE, mas so clareia acima de LIMIAR_DIA
+    if (noite) { if (luz > LIMIAR_DIA) noite = false; }
+    else if (luz < LIMIAR_NOITE) noite = true;
 
     float dist = distanciaCm();
     // So conta pedestre com 2 leituras seguidas perto: um eco falso isolado nao acende a luz
@@ -144,7 +150,7 @@ void tarefaSensores(void* param) {
 
     xSemaphoreTake(mutexEstado, portMAX_DELAY);
     est.luz      = luz;
-    est.noite    = luz < LIMIAR_NOITE;
+    est.noite    = noite;
     est.dist     = dist;
     est.presenca = presenca;
     est.desgaste = desgaste;
@@ -369,7 +375,7 @@ void setup() {
   mutexEstado = xSemaphoreCreateMutex();
   mutexSerial = xSemaphoreCreateMutex();
 
-  logf("Poste inteligente G17 v2.11 iniciado (FreeRTOS + MQTT)");
+  logf("Poste inteligente G17 v2.12 iniciado (FreeRTOS + MQTT)");
 #if USAR_REDE
   logf("[WiFi] conectando...");
 #else

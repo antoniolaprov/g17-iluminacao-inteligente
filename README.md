@@ -95,6 +95,7 @@ deixar a rua mais escura.
 | Parâmetro | Valor | Por quê |
 |---|---|---|
 | Piso noturno | 70% | Diretriz CPTED: rua nunca fica escura |
+| Limite de noite (placa física) | escurece abaixo de 2500, clareia acima de 2700 | Sensível o bastante para a sombra da mão já virar noite na maquete (sala ≈ 3000). A faixa entre os dois valores (histerese) evita que a luz pisque quando a leitura fica perto do limite |
 | Distância de presença | 5 cm | Escala da maquete; é a menor distância que o HC-SR04 mede com confiança (no poste real, alguns metros) |
 | Tempo de presença | 2 s | Luz não "pisca" se a pessoa parar por um instante, sem demorar a voltar na maquete |
 | Correção gama | 2,2 | O olho não percebe brilho de forma linear: sem a correção, 70% de PWM parece quase 100%. Com ela, o salto para 100% quando o pedestre passa fica evidente |

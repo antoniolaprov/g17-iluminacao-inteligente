@@ -288,7 +288,10 @@ Risco alto ou offline → alerta no Telegram (bônus).
 **Ao levar o firmware para a placa física:**
 - `#define SIMULACAO 0` e preencher SSID/senha do Wi-Fi (**não commitar a senha real**).
 - No bloco `#else` (placa física), manter `LDR_INVERTIDO = false` (o módulo físico dá mais luz =
-  número maior, ao contrário do Wokwi). `LIMIAR_NOITE = 2000` funciona: com o sensor de 2 pernas, sala ≈ 3200 e dedo ≈ 400.
+  número maior, ao contrário do Wokwi). Desde a v2.12 (19/11) a placa física usa histerese: escurece
+  abaixo de `LIMIAR_NOITE = 2500` e só volta a ser dia acima de `LIMIAR_DIA = 2700` (sala ≈ 3000, sombra da
+  mão ≈ 2200, dedo ≈ 400). O pedido foi deixar o sensor mais sensível ao escuro e acabar com o pisca-pisca
+  entre DIA e DIMERIZADO perto do limite. No Wokwi: 2000 / 2200.
 - O PlatformIO exige `#include <Arduino.h>` no topo e a biblioteca no `platformio.ini`:
   `lib_deps = knolleary/PubSubClient`.
 - O firmware atual está num único arquivo. A estrutura em vários arquivos (`config.h`,
