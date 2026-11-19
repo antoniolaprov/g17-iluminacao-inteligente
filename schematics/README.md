@@ -2,7 +2,11 @@
 
 - O circuito simulado está em [`esp32-esp8266/poste_g17/diagram.json`](../esp32-esp8266/poste_g17/diagram.json) e pode ser aberto no Wokwi.
 - O mapa de pinos está no [README principal](../README.md#mapa-de-pinos-esp32-devkit).
-- Fotos da montagem física e o esquemático serão adicionados aqui.
+- Fotos da montagem física serão adicionadas aqui.
+
+![Circuito no Wokwi](esquematico-wokwi.png)
+
+*Circuito no Wokwi. Na placa física, a luminária é um mini poste de maquete (LED 3 V, fio vermelho via resistor de 100 Ω no GPIO18 e fio branco no GND) e o sensor de luz é um LDR de 2 pernas com resistor de 10 kΩ.*
 
 Na placa física (DevKit V1, 30 pinos), siga os **números dos GPIOs**, não a posição dos fios do Wokwi (DevKit C).
 ### Sensor de luz: simulação × placa física

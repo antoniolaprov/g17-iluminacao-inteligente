@@ -2,10 +2,10 @@
 //  Poste Inteligente G17 - v2.11 (FreeRTOS + Wi-Fi + MQTT)
 //  CESAR School - Sistemas Embarcados
 //
-//  Hardware: a luminaria e um LED RGB aceso em branco. As tres cores
-//  (R, G e B), cada uma com seu resistor, vao juntas no GPIO18, entao
-//  um unico PWM controla o brilho. O segundo LED RGB (19/21/5) e o
-//  indicador de status.
+//  Hardware: a luminaria e um mini poste de maquete (LED 3 V) no GPIO18,
+//  com resistor de 100 ohms. No Wokwi, que nao tem essa peca, ela e um
+//  LED RGB com R, G e B juntos no GPIO18 (branco). Nos dois casos um unico
+//  PWM controla o brilho. O LED RGB em 19/21/5 e o indicador de status.
 // =============================================================
 #include <WiFi.h>
 #include <PubSubClient.h>
@@ -31,7 +31,7 @@ char TOPICO_COMANDO[48];
 char TOPICO_STATUS[48];
 
 // ---------------- Pinos ----------------
-const int PINO_LED     = 18;   // luminaria: LED RGB com R, G e B juntos (branco)
+const int PINO_LED     = 18;   // luminaria: mini poste LED 3 V (no Wokwi, LED RGB em branco)
 const int PINO_R       = 19;   // LED RGB de status (antes 16/17/23)
 const int PINO_G       = 21;
 const int PINO_B       = 5;

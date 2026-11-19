@@ -144,7 +144,7 @@ resistores, ultrassônico **HC-SR04** (precisa de 5 V, ver seção 6) e **módul
 
 | GPIO | Componente | Ligação |
 |---|---|---|
-| **18** | Luminária (PWM) | **LED RGB aceso em branco**: R → 220 Ω, G → 100 Ω, B → 100 Ω, as três pontas dos resistores juntas no GPIO18; perna comum (a mais comprida) no GND. *O laboratório não tem LED branco. Era o GPIO25; mudou em 27/10 para liberar espaço na placa* |
+| **18** | Luminária (PWM) | **Mini poste de maquete com LED 3 V** (2 fios, testado em 19/11): **fio vermelho → resistor 100 Ω → GPIO18**, **fio branco → GND**. Até 3 postes em paralelo no mesmo pino, cada um com o seu resistor de 100 Ω saindo da fileira do GPIO18; mais que isso exige transistor NPN alimentado pelo VIN. *Antes era um LED RGB aceso em branco (R, G e B juntos no GPIO18), que continua sendo a luminária no Wokwi. Era o GPIO25 até 27/10* |
 | **19 / 21 / 5** | LED RGB de status R / G / B | via **220 / 100 / 100 Ω** · comum no GND (cátodo comum). *Antes 16/17/23; mudou em 29/10 porque eram os pinos livres na montagem* |
 | **26** | Ultrassônico TRIG | direto |
 | **27** | Ultrassônico ECHO | **via divisor de tensão** (1 kΩ em cima, 2 × 1 kΩ embaixo). Sensor alimentado no **VIN (5 V)** |
@@ -273,13 +273,17 @@ Risco alto ou offline → alerta no Telegram (bônus).
   *mais luz = número maior*. Calibração: **sala ≈ 3200, dedo ≈ 400, lanterna = 4095**.
   `LIMIAR_NOITE = 2000` foi mantido (fica no meio entre sala e dedo).
 - **Potenciômetro:** chegou a ficar sempre em 0 porque faltava o fio do **VCC**. Corrigido.
-- **Ultrassônico (27/10):** HC-SR04 não respondia em 3,3 V. Passou a funcionar alimentado no VIN, com
-  divisor de tensão no ECHO.
+- **Ultrassônico (27/10):** HC-SR04 não respondia em 3,3 V. Passou a funcionar alimentado no VIN, com o
+  ECHO ligado direto no GPIO27 (orientação do professor, sem divisor).
 - **Os 3 sensores estão montados e funcionando** (luz, potenciômetro, ultrassônico).
 - **Luminária (29/10):** o laboratório não tem LED branco, então a luminária é um **LED RGB com as
   três cores juntas no GPIO18** (fica branco). O segundo RGB continua como status, agora em 19/21/5.
   O firmware não mudou de lógica: um único PWM no GPIO18 controla o brilho.
-- **Próximos:** luminária RGB (GPIO18) e RGB de status (19/21/5). Depois, gravar o firmware completo.
+- **Mini poste (19/11):** o LED RGB da luminária foi trocado pelo mini poste de maquete (LED 3 V, fio
+  vermelho e fio branco). Testado com o firmware completo: apagado de dia, 70% com o sensor de luz
+  tapado, 100% com pedestre. O código não mudou.
+- **Rede (17/11):** firmware gravado com `USAR_REDE 1`; conectou no Wi-Fi da faculdade e no HiveMQ, e o
+  dashboard (`applications/dashboard`) recebeu a telemetria e enviou comando de potência com sucesso.
 
 **Ao levar o firmware para a placa física:**
 - `#define SIMULACAO 0` e preencher SSID/senha do Wi-Fi (**não commitar a senha real**).

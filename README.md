@@ -36,7 +36,7 @@ Para a disciplina, um **ESP32** representa um poste, com componentes que simulam
 
 | No poste real | No protótipo |
 |---|---|
-| Luminária LED | LED RGB aceso em **branco** (R, G e B juntos), com PWM de 0 a 100% |
+| Luminária LED | Mini poste de maquete com LED de 3 V, com PWM de 0 a 100% (no Wokwi, um LED RGB aceso em branco) |
 | Sensor de luz ambiente | LDR (fotoresistor) |
 | Sensor de presença | Sensor ultrassônico HC-SR04 |
 | Desgaste ou falha da lâmpada | Potenciômetro (girar = "envelhecer" a lâmpada) |
@@ -164,7 +164,7 @@ desligar ou perder a conexão sem avisar. Assim a central sabe na hora que um po
 
 | GPIO | Componente |
 |---|---|
-| 18 | Luminária: LED RGB com R (220 Ω), G (100 Ω) e B (100 Ω) ligados juntos neste pino, comum no GND |
+| 18 | Luminária: mini poste LED 3 V. Fio vermelho via resistor de 100 Ω neste pino, fio branco no GND. Até 3 postes em paralelo, cada um com o seu resistor (no Wokwi: LED RGB com R, G e B juntos) |
 | 19 / 21 / 5 | LED RGB **de status** R / G / B (220 / 100 / 100 Ω) |
 | 26 / 27 | HC-SR04 TRIG / ECHO (ECHO com divisor de tensão, ver abaixo) |
 | 34 | Sensor de luz de 2 pernas em divisor com 10 kΩ: `3V3 → sensor → GPIO34 → 10 kΩ → GND` (no Wokwi: módulo de 4 pinos, pino AO) |
