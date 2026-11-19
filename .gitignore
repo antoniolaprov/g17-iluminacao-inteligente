@@ -7,3 +7,7 @@ secrets.h
 .vscode/
 __pycache__/
 *.db
+
+# Dados brutos da Emlurb (grandes, baixados do portal, não vão para o Git)
+applications/ml/data/raw/
+.ipynb_checkpoints/

@@ -4,9 +4,12 @@ Guia para quem vai desenvolver a parte de machine learning do **Poste de Ilumina
 Leia junto com o [README](README.md), que explica o projeto, e com o [contexto completo](docs/CONTEXTO_PARA_IA.md),
 que tem todos os detalhes técnicos e pode ser entregue para uma IA de apoio.
 
-> **Situação em 19/11/2026:** nada de ML foi feito ainda. Este arquivo reúne o que já foi pesquisado e o que
-> foi combinado. Os dados da Prefeitura **ainda não foram baixados nem abertos**: as colunas listadas abaixo
-> vêm da página do portal e precisam ser conferidas no arquivo real.
+> **Situação em 19/11/2026:** dados baixados e cruzados. O cadastro de postes (2025) e os chamados da
+> Central 156 (2022-2025) já foram baixados, o dicionário de dados foi lido e a decisão de cruzar as duas
+> bases **por bairro** (não por poste/coordenada) foi tomada e já está implementada. Detalhes, números reais
+> e os problemas de qualidade encontrados nos dados (e como foram corrigidos) estão em
+> [`applications/ml/README.md`](applications/ml/README.md) — leia antes de mexer nos dados ou treinar o
+> modelo. **Ainda não feito:** notebook de exploração, modelo treinado, `publicar_risco.py`.
 
 ---
 
@@ -82,10 +85,10 @@ Portal de dados abertos da Prefeitura do Recife (licença ODbL).
   dicionário primeiro.
 - Tem pedidos de arborização, drenagem, **iluminação**, limpeza e pavimentação. É preciso **filtrar só os de
   iluminação**.
-- **Ainda não sabemos** se cada chamado aponta o poste exato, um endereço ou só o bairro. Isso decide como
-  cruzar as duas bases:
-  - **com coordenadas ou endereço:** associar cada chamado ao poste mais próximo (latitude/longitude);
-  - **só com bairro:** trabalhar com risco **por bairro**, que é o caminho mais simples e já serve.
+- **Decidido:** o cruzamento é **por bairro**. O campo `BAIRRO` está 100% preenchido nos chamados; já
+  `latitude`/`longitude` (que existem no CSV mas não no dicionário) só vêm preenchidas em ~36% dos chamados
+  de iluminação, preenchimento baixo demais para ser a fonte principal. Detalhes e números em
+  [`applications/ml/README.md`](applications/ml/README.md).
 
 ### 3.3 Cuidados com os dados
 
