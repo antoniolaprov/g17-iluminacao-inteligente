@@ -99,7 +99,7 @@ deixar a rua mais escura.
 | Limite de noite (placa física) | escurece abaixo de 2500, clareia acima de 2700 | Sensível o bastante para a sombra da mão já virar noite na maquete (sala ≈ 3000). A faixa entre os dois valores (histerese) evita que a luz pisque quando a leitura fica perto do limite |
 | Distância de presença | 5 cm | Escala da maquete; é a menor distância que o HC-SR04 mede com confiança (no poste real, alguns metros) |
 | Tempo de presença | 2 s | Luz não "pisca" se a pessoa parar por um instante, sem demorar a voltar na maquete |
-| Correção gama | 2,2 | O olho não percebe brilho de forma linear: sem a correção, 70% de PWM parece quase 100%. Com ela, o salto para 100% quando o pedestre passa fica evidente |
+| Correção gama | 4,0 na placa física (2,2 no Wokwi) | O olho não percebe brilho de forma linear: sem a correção, 70% de PWM parece quase 100%. Na maquete, o mini poste (LED de 3 V num pino de 3,3 V) brilha pouco e comprime a diferença, então o gama maior deixa o 70% em ~24% de PWM e o salto para 100% quando o pedestre passa fica evidente. Só muda como o LED mostra o valor; a lógica e a telemetria continuam em 70% |
 | Limite de desgaste | 70% | Avisar a manutenção antes da lâmpada queimar |
 | Carência do fail-safe | 15 s | Quedas rápidas da rede são ignoradas; quedas longas acionam a segurança |
 | Telemetria | a cada 5 s | Painel atualizado sem sobrecarregar a rede |

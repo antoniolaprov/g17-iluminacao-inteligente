@@ -231,7 +231,7 @@ O controle roda a cada 50 ms e segue esta prioridade:
 
 Por cima de tudo: **desgaste > 0,70** → `FALHA`, RGB vermelho e LED cintilando (o brilho calculado é mantido).
 
-**Parâmetros:** piso CPTED 70% · presença a 5 cm por 2 s (escala da maquete; era 50 cm. O HC-SR04 não mede bem abaixo de ~3 cm, então não reduzir mais) · ecos < 2 cm descartados · 2 leituras seguidas · correção gama 2,2 na luminária (o `pct` é brilho percebido; sem ela 70% parecia quase 100%) · desgaste 0,70 · carência do fail-safe
+**Parâmetros:** piso CPTED 70% · presença a 5 cm por 2 s (escala da maquete; era 50 cm. O HC-SR04 não mede bem abaixo de ~3 cm, então não reduzir mais) · ecos < 2 cm descartados · 2 leituras seguidas · correção gama na luminária: 2,2 no Wokwi e **4,0 na placa física desde a v2.13 (24/11)**, porque o mini poste LED 3 V brilha pouco e com 2,2 o grupo não via diferença entre 70% e 100% (o `pct` é brilho percebido; o gama só muda o PWM, não a lógica nem a telemetria) · desgaste 0,70 · carência do fail-safe
 15 s · telemetria a cada 5 s · potência pedida inicial 40%.
 
 **FreeRTOS (3 tarefas + mutex do estado + mutex do Serial):**

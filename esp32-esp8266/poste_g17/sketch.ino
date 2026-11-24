@@ -1,5 +1,5 @@
 // =============================================================
-//  Poste Inteligente G17 - v2.12 (FreeRTOS + Wi-Fi + MQTT)
+//  Poste Inteligente G17 - v2.13 (FreeRTOS + Wi-Fi + MQTT)
 //  CESAR School - Sistemas Embarcados
 //
 //  Hardware: a luminaria e um mini poste de maquete (LED 3 V) no GPIO18,
@@ -54,7 +54,14 @@ const int  LIMIAR_DIA    = 2700;    // so volta a ser dia acima disso (histerese
 const bool  RGB_ANODO_COMUM           = false;
 const float DIST_PRESENCA_CM          = 5;      // escala da maquete (menor distancia confiavel do HC-SR04)
 const unsigned long TEMPO_PRESENCA_MS = 2000;   // luz forte por 2 s depois que o pedestre sai (antes 10 s)
+#if SIMULACAO
 const float GAMMA_LUMINARIA           = 2.2;    // correcao gama: brilho percebido (1.0 = PWM linear)
+#else
+// Mini poste (LED 3 V num pino de 3,3 V) brilha pouco e comprime a diferenca entre 70% e 100%.
+// Gama maior deixa o 70% bem mais escuro na maquete (~24% de PWM) e o pedestre fica evidente.
+// So muda como o LED mostra o valor: pct, telemetria e logica continuam iguais.
+const float GAMMA_LUMINARIA           = 4.0;
+#endif
 const int   PISO_PCT                  = 70;     // piso CPTED
 const float LIMIAR_DESGASTE           = 0.70;
 const unsigned long INTERVALO_TELEMETRIA_MS = 5000;
@@ -375,7 +382,7 @@ void setup() {
   mutexEstado = xSemaphoreCreateMutex();
   mutexSerial = xSemaphoreCreateMutex();
 
-  logf("Poste inteligente G17 v2.12 iniciado (FreeRTOS + MQTT)");
+  logf("Poste inteligente G17 v2.13 iniciado (FreeRTOS + MQTT)");
 #if USAR_REDE
   logf("[WiFi] conectando...");
 #else
