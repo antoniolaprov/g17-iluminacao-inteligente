@@ -18,8 +18,9 @@ com ESP32** (professores Bella Nunes e Jymmy Barreto). Considere:
   `esp32-esp8266/poste_g17/sketch.ino`.
 - Parte da equipe usa ESP32 pela primeira vez. Explique de forma didática, em passos pequenos e
   testáveis, e só considere um teste aprovado com evidência (linha do Serial, print).
-- O escopo é um **MVP** (seção 4). Não reintroduza Airflow, MLflow, XGBoost ou AHP sem que a pessoa
-  peça. Eles pertencem à proposta original de outra disciplina (seção 3).
+- **Confirmado em 24/11:** Airflow, MLflow e API fazem parte dos requisitos de ML **desta mesma
+  disciplina** (não são só da proposta original de outra matéria) — ver o escopo atualizado no
+  [`MACHINE_LEARNING.md`](../MACHINE_LEARNING.md). Score CPTED com AHP continua fora do MVP, só isso.
 - Respeite o **contrato MQTT** (seção 7) e o **mapa de pinos** (seção 6). **O contrato da seção 7 é o
   que o firmware publica de verdade.** Se for mudar algo, avise, porque outras partes do grupo dependem disso.
 - **Política de IA do edital:** o PDF diz que IA é permitida *"apenas para revisão do texto, mediante
@@ -100,12 +101,15 @@ físico em miniatura**, que fala o mesmo formato MQTT dos postes simulados.
 
 | Proposta original | MVP |
 |---|---|
-| PostgreSQL + Airflow | **SQLite** + script coletor em Python |
-| XGBoost + MLflow | **Regra de risco simples** (seção 8) |
-| Score CPTED com AHP | **Nível CPTED fixo** por poste (o poste real é "média", piso 70%) |
-| FastAPI + Streamlit | **Só Streamlit**, lendo o SQLite |
-| 100 postes simulados | **1 poste real + 20 simulados** |
+| PostgreSQL | **SQLite** + script coletor em Python |
+| **Airflow** | **Confirmado em 24/11: entra no MVP**, só com um DAG leve (`preparar_dados` → `treinar` → `publicar_risco`), `LocalExecutor`, sem Celery/Postgres |
+| XGBoost | `RandomForestClassifier`/`GradientBoostingClassifier` do scikit-learn, comparados com uma regra simples (seção 8) |
+| **MLflow** | **Confirmado em 24/11: entra no MVP**, rastreando os experimentos de treino (parâmetros, métricas, modelo) |
+| Score CPTED com AHP | **Nível CPTED fixo** por poste (o poste real é "média", piso 70%) — esse corte continua |
+| **FastAPI** + Streamlit | **Confirmado em 24/11: a API entra no MVP** (serve a inferência do modelo); o dashboard em tempo real continua em HTML/JS, mas um painel de risco em Streamlit pode ser adicionado |
+| 100 postes simulados | **3 postes físicos + postes simulados** (quantidade a definir no simulador) |
 | INA219, DS18B20, PIR, BH1750 | **Fora do MVP** (evoluções futuras) |
+| — | **Docker**: conteinerizar Mosquitto, coletor, API e Airflow (confirmado em 24/11, não estava no MVP original) |
 
 ### Arquitetura
 ```

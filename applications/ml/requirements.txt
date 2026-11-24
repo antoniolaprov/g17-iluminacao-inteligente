@@ -1,1 +1,12 @@
 pandas
+scikit-learn
+matplotlib
+mlflow
+fastapi
+uvicorn
+paho-mqtt
+jupyter
+
+# Airflow nao entra aqui: as dependencias dele conflitam facil com o resto
+# (precisa de arquivo de constraints proprio). Roda via docker-compose.yml,
+# com a imagem oficial apache/airflow (ver MACHINE_LEARNING.md secao 6).

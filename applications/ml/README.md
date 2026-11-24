@@ -140,10 +140,16 @@ Isso é uma decisão de modelagem, não foi resolvido aqui — fica para quem to
 
 ## 6. Próximos passos (estrutura do `MACHINE_LEARNING.md`, seção 6)
 
+> Confirmado em 24/11: MLflow, Airflow, API e Docker são requisito desta disciplina, não "extra".
+> A lista abaixo já reflete isso.
+
 - [x] `data/raw/` baixado (postes 2025 + 156 de 2022-2025 + dicionário)
 - [x] `src/preparar_dados.py` (normalização, cruzamento por bairro, rótulo, split treino/teste)
-- [ ] `notebooks/01_exploracao.ipynb`
-- [ ] `src/treinar.py` (`RandomForestClassifier`/`GradientBoostingClassifier`, métricas da seção 4
-      do `MACHINE_LEARNING.md` — decidir antes como lidar com o desbalanceamento da seção 5 acima)
-- [ ] `src/publicar_risco.py` (publica risco + comando no MQTT)
-- [ ] `config.json` (mapear `P01` para um `id_ponto` real do cadastro)
+- [ ] `notebooks/01_exploracao.ipynb` (EDA + visualizações, seção 2.0 do `MACHINE_LEARNING.md`)
+- [ ] `src/treinar.py` (`RandomForestClassifier`/`GradientBoostingClassifier` vs. regra simples,
+      métricas da seção 4 do `MACHINE_LEARNING.md`, cada treino como uma run do **MLflow**)
+- [ ] `src/api.py` (FastAPI servindo a inferência do modelo registrado)
+- [ ] `src/publicar_risco.py` (chama a API e publica risco + comando no MQTT)
+- [ ] `dags/risco_dag.py` (Airflow: orquestra os três scripts acima)
+- [ ] `Dockerfile` + `docker-compose.yml` (Mosquitto + coletor + API + MLflow + Airflow)
+- [ ] `config.json` (mapear `P01`-`P03` para `id_ponto` reais do cadastro)
