@@ -197,7 +197,9 @@ funcionam enquanto o Wi-Fi está ligado.
 | Pasta | Conteúdo |
 |---|---|
 | `esp32-esp8266/poste_g17/` | Firmware do poste (`sketch.ino`), circuito do Wokwi (`diagram.json`) e bibliotecas |
-| `applications/` | Broker, banco de dados, dashboard e simulador *(em desenvolvimento)* |
+| `applications/dashboard/` | Dashboard web, pronto e testado |
+| `applications/ml/` | Dados reais da Emlurb, EDA e (em breve) o modelo de risco por bairro |
+| `applications/` | Broker, coletor e simulador ainda *em desenvolvimento* |
 | `schematics/` | Esquemáticos e fotos da montagem |
 | `docs/` | Documentação e [registro de testes](docs/testes_wokwi.md) |
 | [`MACHINE_LEARNING.md`](MACHINE_LEARNING.md) | Plano da parte de machine learning (dados da Emlurb, modelo de risco e integração por MQTT) |
@@ -232,7 +234,8 @@ Para gravar na placa física, mude `#define SIMULACAO 1` para `0` e preencha o n
 - [ ] IPv6
 - [ ] Central: Mosquitto local + SQLite (hoje ainda é só o broker público HiveMQ, sem persistência)
 - [ ] Simulador de postes virtuais
-- [ ] Modelo de risco por bairro (dados reais já baixados e cruzados, ver [`MACHINE_LEARNING.md`](MACHINE_LEARNING.md))
+- [ ] Modelo de risco por bairro (dados reais baixados, cruzados, com EDA e decisão de alvo
+      concluídas — falta treinar; ver [`MACHINE_LEARNING.md`](MACHINE_LEARNING.md))
 
 ---
 

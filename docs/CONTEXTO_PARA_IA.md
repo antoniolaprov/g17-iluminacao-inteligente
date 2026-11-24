@@ -112,19 +112,25 @@ físico em miniatura**, que fala o mesmo formato MQTT dos postes simulados.
 | — | **Docker**: conteinerizar Mosquitto, coletor, API e Airflow (confirmado em 24/11, não estava no MVP original) |
 
 ### Arquitetura
+
+> Atualizado em 24/11 — a versão anterior deste diagrama (1 poste físico, dashboard Streamlit,
+> sem ML) ficou desatualizada pelas decisões das seções 4 e 9.
+
 ```
-        POSTE FÍSICO                              PC
+     POSTES FÍSICOS (3, "P01".."P03")               PC
 ┌────────────────────────────┐            ┌──────────────────────────────────┐
-│  ESP32 = poste "P01"       │   Wi-Fi    │  Mosquitto (broker MQTT)         │
+│  ESP32 = poste             │   Wi-Fi    │  Mosquitto (broker MQTT)         │
 │  LDR ......... é noite?    │ ─────────► │      │                           │
 │  Ultrassônico  tem gente?  │ telemetria │      ▼                           │
 │  Potenciômetro desgaste    │   (5 s)    │  coletor.py ──► SQLite           │
-│  LED RGB branco luminária  │ ◄───────── │                    │             │
-│  LED RGB ..... status      │  comando   │                    ▼             │
-└────────────────────────────┘            │  Dashboard Streamlit             │
-                                          │   • mapa com 21 postes           │
-   simulador.py = 20 postes virtuais ───► │   • gráfico em tempo real        │
-   (mesmo formato de mensagem)            │   • comando de potência          │
+│  Mini poste LED luminária  │ ◄───────── │      │                           │
+│  LED RGB ..... status      │  comando   │      ▼                           │
+└────────────────────────────┘            │  Airflow → treino → MLflow → API │
+                                          │      │ (risco por bairro)        │
+  simulador.py = postes virtuais ───────► │      ▼                           │
+  (mesmo formato de mensagem,              │  Dashboard web (HTML/JS)         │
+   quantidade a definir)                   │   • estado dos postes ao vivo    │
+                                          │   • gráfico, comando de potência  │
                                           │   • alerta Telegram (bônus)      │
                                           └──────────────────────────────────┘
 ```
@@ -326,7 +332,7 @@ colaborativos").
 | 03/11 | Sensores funcionando + ESP32 publicando no broker | feito: firmware completo, 3 postes físicos montados e testados (sensores, luminária, rede) |
 | 10/11 | Coletor + SQLite + dashboard com poste real e simulados | dashboard funciona com o poste real; coletor/SQLite e simulador de postes virtuais ainda não existem |
 | **17/11** | **Check Point:** fluxo completo + relatório iniciado + repo organizado | data passada — confirmar resultado com o grupo/professores |
-| 24/11 | Dados reais da Emlurb baixados e cruzados por bairro (ver `MACHINE_LEARNING.md`) | feito |
+| 24/11 | Dados reais da Emlurb baixados e cruzados por bairro, EDA e decisão de alvo do modelo (ver `MACHINE_LEARNING.md`) | feito |
 | 03/12 | Mosquitto local, IPv6, alerta Telegram, modelo de risco e relatório final | a fazer |
 | 12/12 | Mostra TechDesign | a fazer |
 
