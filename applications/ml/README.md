@@ -138,14 +138,30 @@ Isso é uma decisão de modelagem, não foi resolvido aqui — fica para quem to
 
 ---
 
-## 6. Próximos passos (estrutura do `MACHINE_LEARNING.md`, seção 6)
+## 6. Notebook de exploração
+
+[`notebooks/01_exploracao.ipynb`](notebooks/01_exploracao.ipynb) — já executado, com gráficos embutidos.
+Roda com `py -m jupyter nbconvert --to notebook --execute --inplace notebooks/01_exploracao.ipynb`
+se os dados mudarem. Principais achados (além do que já está nas seções acima):
+
+- **Boa Viagem concentra muito mais chamados que qualquer outro bairro** (~9.300 no período, quase
+  o dobro do 2º colocado, Santo Amaro). Faz sentido usar isso como "estudo de caso" na apresentação.
+- **98,4% dos postes já são LED**, em média por bairro — a transição para LED na cidade já está bem
+  avançada, não há muita variação de `pct_led` entre bairros pra usar como feature forte sozinha.
+- Não há uma relação linear clara entre `% LED` e volume de chamados no gráfico de dispersão — o
+  volume parece dominado pelo tamanho do bairro (mais postes = mais chamados em termos absolutos),
+  reforçando a necessidade de uma feature de exposição (`total_postes`) no modelo.
+
+---
+
+## 7. Próximos passos (estrutura do `MACHINE_LEARNING.md`, seção 6)
 
 > Confirmado em 24/11: MLflow, Airflow, API e Docker são requisito desta disciplina, não "extra".
 > A lista abaixo já reflete isso.
 
 - [x] `data/raw/` baixado (postes 2025 + 156 de 2022-2025 + dicionário)
 - [x] `src/preparar_dados.py` (normalização, cruzamento por bairro, rótulo, split treino/teste)
-- [ ] `notebooks/01_exploracao.ipynb` (EDA + visualizações, seção 2.0 do `MACHINE_LEARNING.md`)
+- [x] `notebooks/01_exploracao.ipynb` (EDA + visualizações, seção 2.0 do `MACHINE_LEARNING.md`)
 - [ ] `src/treinar.py` (`RandomForestClassifier`/`GradientBoostingClassifier` vs. regra simples,
       métricas da seção 4 do `MACHINE_LEARNING.md`, cada treino como uma run do **MLflow**)
 - [ ] `src/api.py` (FastAPI servindo a inferência do modelo registrado)
