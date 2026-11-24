@@ -2,7 +2,7 @@
 
 > **Como usar este arquivo:** anexe-o (ou cole todo o conteúdo) no início de uma conversa com o Claude
 > ou outro assistente de IA, e depois faça sua pergunta. Ele resume tudo o que o grupo decidiu e
-> construiu até **27/10/2026**.
+> construiu até **24/11/2026**.
 >
 > Repositório: https://github.com/antoniolaprov/g17-iluminacao-inteligente
 
@@ -260,9 +260,13 @@ Risco alto ou offline → alerta no Telegram (bônus).
 ### Repositório GitHub
 - Estrutura do edital criada; firmware em `esp32-esp8266/poste_g17/` (`sketch.ino`, `diagram.json`,
   `libraries.txt`); README com contextualização, lógica, contrato MQTT e mapa de pinos.
-- `applications/` e `schematics/` ainda só têm README.
+- `applications/dashboard/` pronto e testado; `applications/ml/` com os dados reais da Emlurb
+  baixados e cruzados (ver [`MACHINE_LEARNING.md`](../MACHINE_LEARNING.md)). Coletor/Mosquitto local
+  e simulador de postes ainda não existem.
 
-### Montagem física (em andamento, 27/10)
+### Montagem física (concluída em 24/11, falta decorar a maquete)
+- **São 3 postes físicos**, todos com sensores, luminária e rede testados e funcionando. Falta só a
+  decoração da maquete.
 - PlatformIO instalado; driver CP210x instalado (placa na COM3); gravação funcionando.
 - **Montado e funcionando:** módulo de luz (AO no GPIO34) e potenciômetro (GPIO35), testados com um
   sketch que imprime os dois valores.
@@ -299,19 +303,14 @@ Risco alto ou offline → alerta no Telegram (bônus).
 
 ---
 
-## 10. Divisão de tarefas sugerida
+## 10. Divisão de tarefas
 
-| Parte | Responsável |
-|---|---|
-| Firmware + circuito | Antônio |
-| Mosquitto + Docker + coletor | Bruno |
-| Simulador dos 20 postes | Miguel |
-| Dashboard Streamlit | Arthur + Henrique |
-| Alerta Telegram + IPv6 | Luiz Claudio |
-| Relatório CSBC + README + cronograma | Felipe |
+O grupo abandonou a divisão fixa por integrante (seção 10 de versões antigas deste arquivo): a partir de
+24/11 todo mundo ajuda no que estiver em aberto, priorizando o que falta por ordem de risco para a nota
+(seção 1): Mosquitto local + coletor, IPv6, simulador de postes, modelo de risco (ML) e o relatório CSBC.
 
-Cada um deve commitar no repositório do grupo (conta para "commits colaborativos"). Para isso, cada
-integrante precisa ser adicionado como colaborador.
+Cada um deve continuar commitando no repositório do grupo com a própria conta (conta para "commits
+colaborativos").
 
 ---
 
@@ -319,12 +318,13 @@ integrante precisa ser adicionado como colaborador.
 
 | Até | Entrega | Situação |
 |---|---|---|
-| 27/10 | Apresentação da ideia | a fazer |
-| 03/11 | Sensores funcionando + ESP32 publicando no broker | firmware pronto no Wokwi; montagem física em andamento |
-| 10/11 | Coletor + SQLite + dashboard com poste real e simulados | a fazer |
-| **17/11** | **Check Point:** fluxo completo + relatório iniciado + repo organizado | |
-| 03/12 | IPv6 + alerta Telegram + relatório final | a fazer |
-| 12/12 | Mostra TechDesign | |
+| 27/10 | Apresentação da ideia | data passada |
+| 03/11 | Sensores funcionando + ESP32 publicando no broker | feito: firmware completo, 3 postes físicos montados e testados (sensores, luminária, rede) |
+| 10/11 | Coletor + SQLite + dashboard com poste real e simulados | dashboard funciona com o poste real; coletor/SQLite e simulador de postes virtuais ainda não existem |
+| **17/11** | **Check Point:** fluxo completo + relatório iniciado + repo organizado | data passada — confirmar resultado com o grupo/professores |
+| 24/11 | Dados reais da Emlurb baixados e cruzados por bairro (ver `MACHINE_LEARNING.md`) | feito |
+| 03/12 | Mosquitto local, IPv6, alerta Telegram, modelo de risco e relatório final | a fazer |
+| 12/12 | Mostra TechDesign | a fazer |
 
 ---
 

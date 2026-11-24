@@ -43,8 +43,9 @@ Para a disciplina, um **ESP32** representa um poste, com componentes que simulam
 | Indicador para o técnico | LED RGB de status |
 | Rede da cidade | Wi-Fi + MQTT |
 
-A demonstração final terá **1 poste físico + 20 postes simulados** enviando dados para o
-mesmo painel.
+A montagem física está concluída: **3 postes físicos** (sensores, luminária e rede testados e
+funcionando), faltando só decorar a maquete. A demonstração final junta esses postes físicos com
+postes simulados enviando dados para o mesmo painel.
 
 ---
 
@@ -226,10 +227,12 @@ Para gravar na placa física, mude `#define SIMULACAO 1` para `0` e preencha o n
 - [x] Telemetria e comandos via MQTT + LWT
 - [x] Fail-safe com carência de 15 s
 - [x] Testes no simulador ([registro](docs/testes_wokwi.md))
-- [ ] Montagem física
+- [x] Montagem física (3 postes físicos; falta só decorar a maquete)
+- [x] Dashboard web recebendo telemetria e enviando comando (testado com a placa real)
 - [ ] IPv6
-- [ ] Central: Mosquitto + SQLite + dashboard Streamlit
-- [ ] Simulador de 20 postes
+- [ ] Central: Mosquitto local + SQLite (hoje ainda é só o broker público HiveMQ, sem persistência)
+- [ ] Simulador de postes virtuais
+- [ ] Modelo de risco por bairro (dados reais já baixados e cruzados, ver [`MACHINE_LEARNING.md`](MACHINE_LEARNING.md))
 
 ---
 

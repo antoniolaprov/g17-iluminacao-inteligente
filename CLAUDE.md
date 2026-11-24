@@ -15,7 +15,8 @@ numa maquete lê luz, presença e desgaste, controla a luminária por PWM e conv
 |---|---|
 | `esp32-esp8266/poste_g17/` | Firmware (`sketch.ino`, FreeRTOS + Wi-Fi + MQTT) e circuito do Wokwi (`diagram.json`) |
 | `applications/dashboard/` | Dashboard web (HTML + JS + MQTT.js), abre direto no navegador |
-| `applications/` | Back-end, simulador e ML ainda vão entrar aqui |
+| `applications/ml/` | Dados reais da Emlurb (cadastro de postes + chamados 156) e o cruzamento por bairro, ver seu [README](applications/ml/README.md) |
+| `applications/` | Mosquitto/coletor e simulador de postes ainda vão entrar aqui |
 | `schematics/` | Esquemático e fotos |
 | `docs/` | Contexto, registro de testes e, no fim, o relatório CSBC em PDF |
 
