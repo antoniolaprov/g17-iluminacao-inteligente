@@ -15,8 +15,14 @@ que tem todos os detalhes técnicos e pode ser entregue para uma IA de apoio.
 > EDA com visualizações, comparação de modelos, rastreamento de experimentos com **MLflow**,
 > orquestração do pipeline com **Airflow**, inferência servida por **API** e **Docker**. Esta seção
 > inteira foi reescrita para refletir isso — não é mais o MVP reduzido de versões antigas deste arquivo.
-> **Ainda não feito:** notebook de exploração, MLflow, modelo treinado, Airflow, API, Docker,
-> `publicar_risco.py`.
+>
+> **Notebook de EDA pronto** (`applications/ml/notebooks/01_exploracao.ipynb`), e já rendeu a decisão
+> mais importante antes de treinar: o alvo é a **contagem** de chamados do mês seguinte (regressão/
+> ranking), não um binário sim/não — o binário tem no máximo 0,15 de correlação com qualquer feature,
+> contra até 0,89 na contagem (seção 2.1 e seção 5 do `applications/ml/README.md`). No caminho, um bug
+> de digitação no cadastro de postes foi achado e corrigido (3 bairros fantasmas que nunca tinham
+> chamado, por erro de grafia, não por serem seguros). **Ainda não feito:** MLflow, modelo treinado,
+> Airflow, API, Docker, `publicar_risco.py`.
 
 ---
 
@@ -56,15 +62,22 @@ Antes de treinar qualquer modelo: notebook (`notebooks/01_exploracao.ipynb`) com
 Prever **quais postes ou bairros têm mais chance de ter chamado de "lâmpada apagada"** no próximo período.
 
 - **Entrada:** características do poste (tipo de lâmpada, tipo de luminária, potência, bairro, RPA, data de
-  atualização) e o histórico de chamados de iluminação da região.
-- **Rótulo (sugestão):** o poste ou bairro teve pelo menos um chamado de iluminação no mês seguinte (sim/não).
+  atualização), features de defasagem (`chamados_lag1/2/3`, `media_movel_3m`) e o histórico de chamados de
+  iluminação da região.
+- **Rótulo — decidido em 24/11, não é mais sim/não:** a EDA (seção 5 do
+  [`applications/ml/README.md`](applications/ml/README.md)) mostrou que o binário "teve chamado no mês
+  seguinte" correlaciona no máximo 0,15 com qualquer feature (a classe positiva é ~95% das linhas, não dá
+  pra discriminar nada), enquanto a **contagem** de chamados do mês seguinte correlaciona até 0,89 com o
+  histórico do bairro. **O alvo é `chamados_mes_seguinte` (regressão/ranking)**, convertido em risco de 0 a
+  1 por percentil entre os bairros do mesmo mês.
 - **Validação:** split temporal (2022-2024 treino, 2025 teste — já implementado no `preparar_dados.py`),
   nunca aleatório, porque o objetivo é prever o futuro.
-- **Modelos a comparar:** pelo menos `RandomForestClassifier` e `GradientBoostingClassifier` do
-  scikit-learn, contra a regra simples da seção 4. **Cada treino é uma run do MLflow**
-  (`mlflow.log_param`/`log_metric`/`log_model`), para comparar os experimentos pela UI do MLflow
-  (`mlflow ui`) em vez de só print no terminal.
-- **Saída:** um número de 0 a 1 (risco) por poste ou bairro, servido por uma API (seção 5.2).
+- **Modelos a comparar:** pelo menos `RandomForestRegressor` e `GradientBoostingRegressor` do
+  scikit-learn, contra uma regra simples (ex.: `media_movel_3m`) e contra a seção 4. **Cada treino é uma
+  run do MLflow** (`mlflow.log_param`/`log_metric`/`log_model`), para comparar os experimentos pela UI do
+  MLflow (`mlflow ui`) em vez de só print no terminal.
+- **Saída:** um número de 0 a 1 (risco, normalizado por percentil a partir da contagem prevista) por
+  bairro, servido por uma API (seção 5.2).
 - **Ligação com a maquete:** o potenciômetro do poste já simula o **desgaste ao vivo** (acima de 0,70 = falha).
   O modelo dá o **risco histórico**. No dashboard, os dois aparecem juntos: "o modelo previa risco alto e o
   sensor confirmou a falha → mandar a equipe".
@@ -120,16 +133,16 @@ Portal de dados abertos da Prefeitura do Recife (licença ODbL).
   `.gitignore` sugerido abaixo, e documente no README da pasta de onde baixar.
 - **Separe treino e teste por tempo** (por exemplo, treinar com 2022–2024 e testar com 2025), nunca
   aleatoriamente: o objetivo é prever o futuro.
-- Os chamados devem ser raros em relação ao total de postes, então use métricas que funcionam com
-  **classes desbalanceadas**.
+- O rótulo binário "teve chamado" é raro ao contrário (~95% positivo) — foi exatamente por isso que a
+  seção 2.1 trocou o alvo para a contagem do mês seguinte (regressão/ranking) em vez de classificação.
 
 ## 4. Como avaliar
 
 | O que medir | Por quê |
 |---|---|
-| **ROC-AUC** | Mostra se o modelo ordena bem quem tem mais risco |
-| **Precisão no top 10%** | "Dos postes que o modelo mandou vistoriar primeiro, quantos tiveram chamado?" É a métrica que a Emlurb usaria |
-| **Comparação com uma regra simples** | Ex.: "risco = número de chamados do bairro no ano anterior". O modelo só vale a pena se for melhor que isso |
+| **MAE/RMSE da contagem prevista** | Erro básico da regressão (`chamados_mes_seguinte` previsto vs. real) |
+| **Precisão no top 10%** | "Dos bairros que o modelo apontou como mais prováveis, quantos de fato tiveram volume alto no mês seguinte?" Métrica de ranking, é a que a Emlurb usaria, e se encaixa na regressão |
+| **Comparação com uma regra simples** | Ex.: "risco = `media_movel_3m`" ou "chamados do bairro no ano anterior". O modelo só vale a pena se for melhor que isso |
 
 Coloque esses números no relatório, com um gráfico da importância das variáveis.
 
@@ -254,8 +267,8 @@ requisito sem consumir o tempo que falta para o resto.
 | Até | Entrega |
 |---|---|
 | 24/11 | ✅ Dados baixados e cruzados por bairro |
-| 25/11 | Notebook de EDA + visualizações (seção 2.0) |
-| 27/11 | Modelos treinados e comparados (RandomForest, GradientBoosting, regra simples), com MLflow registrando cada run |
+| 24/11 | ✅ Notebook de EDA + visualizações + decisão de alvo (contagem, não binário — seção 2.0/2.1) |
+| 27/11 | Modelos de regressão treinados e comparados (RandomForest, GradientBoosting, regra simples), com MLflow registrando cada run |
 | 29/11 | API (FastAPI) servindo o modelo escolhido + `publicar_risco.py` publicando no MQTT |
 | 30/11 | DAG do Airflow rodando o pipeline completo (preparar → treinar → publicar) |
 | 01/12 | `docker-compose` com Mosquitto + coletor + API + Airflow + MLflow, testado de ponta a ponta |

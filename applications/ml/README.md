@@ -66,7 +66,17 @@ anos diferentes de um dataset da prefeitura — sempre conferir se os códigos b
   script conta pelo tamanho do grupo, não pela coluna `id_ponto`.
 - **O mesmo bairro aparece com grafias diferentes no cadastro de postes** (Title Case numa linha,
   CAIXA ALTA noutra — ex.: `"Boa Viagem"` e `"BOA VIAGEM"`). Isso por si só derrubou a contagem de
-  154 bairros "brutos" para **97 bairros reais** depois de normalizar.
+  154 bairros "brutos" para 97 depois de normalizar por acento/caixa/espaço.
+- **3 bairros do cadastro têm erro de digitação** que a normalização de acento/caixa não resolve,
+  porque são letras diferentes, não só formatação: `CIDADDE UNIVERSITARIA` (1 poste) vs. `CIDADE
+  UNIVERSITARIA` (217 postes), `IMBIRBEIRA` (8 postes) vs. `IMBIRIBEIRA` (4.491 postes), `TEJIIPIO`
+  (2 postes) vs. `TEJIPIO` (665 postes). Sem corrigir, cada um vira um "bairro" fantasma com **zero
+  chamados em todos os 47 meses** — não porque seja seguro, mas porque a grafia errada nunca bate
+  com os chamados de verdade. `CORRECOES_BAIRRO` no `preparar_dados.py` funde os três pares
+  (deixando **94 bairros reais**, não 97).
+- **`BAIRRO NAO INFORMADO`** não é um bairro — é o valor que a Central 156 grava quando o
+  atendente não registrou o bairro (54 chamados em 4 anos, só em 2024, de ~130 mil). Fica fora do
+  painel por bairro em vez de virar uma categoria.
 - **Colunas `consumo_kw` e `consumo_1` do cadastro de postes não fazem sentido** (ficam na casa de
   petawatt-hora para uma única luminária — claramente um artefato de exportação). Não são usadas
   aqui nem devem ser usadas sem recalcular a partir de `potencia`.
@@ -79,11 +89,13 @@ Função `normalizar_bairro()` em `src/preparar_dados.py`: remove acento, deixa 
 colapsa espaços duplicados e tira espaço nas pontas. Aplicada dos dois lados (cadastro de postes
 e chamados) antes do `merge`.
 
-Depois de normalizar: **98 bairros distintos** nos chamados de lâmpada apagada, **97** no cadastro
-de postes, com **4 bairros nos chamados sem poste cadastrado correspondente**:
-`ALTO DO MANDU SITIO GRANDE`, `BAIRRO NAO INFORMADO`, `COHAB IBURA DE CIMA`, `SITIO DOS PINTOS SAO
-BRAS`. Esses casos ficam no painel final sem as colunas de poste preenchidas (`NaN`) — são bairros
-"compostos" ou mal cadastrados no 156, não dá pra reconciliar automaticamente sem decisão manual.
+Depois de normalizar (e corrigir os 3 erros de digitação acima): **97 bairros distintos** nos
+chamados de lâmpada apagada, **94** no cadastro de postes, com **3 bairros nos chamados sem poste
+cadastrado correspondente**: `ALTO DO MANDU SITIO GRANDE`, `COHAB IBURA DE CIMA`, `SITIO DOS PINTOS
+SAO BRAS` — nomes "compostos" que não bati com nenhuma grafia do cadastro. Esses 3 (144 linhas do
+painel) são **descartados** antes de treinar, porque não têm nenhuma feature de poste (ficariam
+`NaN` em tudo) — não dá pra reconciliar automaticamente sem decisão manual, e o volume é pequeno
+perto do total.
 
 ---
 
@@ -100,41 +112,58 @@ vêm desse resumo) e grava em `data/processed/`:
 
 | Arquivo | O que é | Linhas |
 |---|---|---|
-| `postes_por_bairro.csv` | 1 linha por bairro: total de postes, % LED, potência média, RPA | 97 |
-| `risco_bairro_mes.csv` | 1 linha por bairro × mês (2022-01 a 2025-11), com o rótulo e o split | 4.747 |
+| `postes_por_bairro.csv` | 1 linha por bairro: total de postes, % LED, potência média, RPA | 94 |
+| `risco_bairro_mes.csv` | 1 linha por bairro × mês, com features de defasagem, rótulo e split | 4.136 |
 
-Essas duas saídas **são pequenas e podem ir para o Git** (não são os CSVs brutos da Emlurb).
+Essas duas saídas **são pequenas e podem ir para o Git** (não são os CSVs brutos da Emlurb). O
+painel começa em 2022-04 (não 2022-01): os 3 primeiros meses de cada bairro ficam sem histórico de
+3 meses pra trás e são descartados (seção 5).
 
 ### Colunas de `risco_bairro_mes.csv`
 | Coluna | Significado |
 |---|---|
-| `bairro_norm` | Bairro normalizado (sem acento, caixa alta) |
+| `bairro_norm` | Bairro normalizado (sem acento, caixa alta, erros de digitação corrigidos) |
 | `ano_mes` | Mês de referência (`AAAA-MM`) |
 | `chamados_lampada_apagada` | Quantos chamados de lâmpada apagada esse bairro teve nesse mês |
+| `chamados_lag1`/`lag2`/`lag3`, `media_movel_3m` | Histórico dos 1-3 meses anteriores do mesmo bairro (seção 5) |
 | `total_postes`, `postes_sem_id`, `potencia_media_w`, `pct_led`, `rpa` | Features do cadastro de postes (seção 2) |
-| `teve_chamado_mes_seguinte` | **Rótulo**: 1 se o bairro teve ≥ 1 chamado no mês seguinte |
-| `conjunto` | `treino` (2022-01 a 2024-12) ou `teste` (2025-01 a 2025-11), separado por tempo, não aleatório |
+| `teve_chamado_mes_seguinte` | Rótulo binário (1 se o bairro teve ≥ 1 chamado no mês seguinte) — **não é mais o alvo principal**, ver seção 5 |
+| `chamados_mes_seguinte` | **Alvo principal**: contagem de chamados do bairro no mês seguinte |
+| `conjunto` | `treino` (até 2024-12) ou `teste` (2025), separado por tempo, não aleatório |
 
 ---
 
-## 5. Atenção para quem for treinar o modelo: o rótulo está desbalanceado ao contrário
+## 5. Decisão de alvo: contagem (regressão/ranking), não classificação binária
 
-Depois de agregar por bairro e mês, **91,4% das linhas de treino e 91,6% das de teste já têm
-`teve_chamado_mes_seguinte = 1`**. Faz sentido: com ~95 bairros dividindo ~3.000 chamados de
-lâmpada apagada por mês, quase todo bairro tem pelo menos um chamado em quase todo mês. Isso é o
-**oposto** do desbalanceamento "clássico" que o `MACHINE_LEARNING.md` avisava (rótulo raro) — aqui
-o raro é o **zero**.
+Depois de agregar por bairro e mês, **~95-97% das linhas já têm `teve_chamado_mes_seguinte = 1`**
+(treino e teste próximos um do outro, então o split temporal está ok). Isso é o **oposto** do
+desbalanceamento "clássico" que o `MACHINE_LEARNING.md` avisava (rótulo raro) — aqui o raro é o
+**zero**: com ~94 bairros dividindo milhares de chamados de lâmpada apagada por mês, quase todo
+bairro tem pelo menos um chamado em quase todo mês.
 
-Prever "vai ter chamado ou não" nesse nível de agregação tende a virar um modelo que só acerta
-dizendo sempre "sim". Vale considerar, antes de treinar:
-- prever a **contagem** de chamados do mês seguinte (regressão) ou um **ranking** de bairros por
-  intensidade, em vez de um sim/não;
-- ou agregar por uma unidade menor que bairro (não temos coordenada/poste confiável nos chamados
-  para isso, seção 2);
-- ou tratar como desbalanceado na classe 0 (bairro sem nenhum chamado no mês seguinte), que é a
-  minoria de verdade.
+Para checar se isso quebra o modelo de verdade, comparamos a correlação (treino) de cada feature
+contra os dois alvos possíveis:
 
-Isso é uma decisão de modelagem, não foi resolvido aqui — fica para quem tocar o `treinar.py`.
+| Feature | correlação com o binário | correlação com a contagem |
+|---|---|---|
+| `chamados_lampada_apagada` (mês atual) | 0,15 | **0,89** |
+| `media_movel_3m` | 0,14 | **0,88** |
+| `chamados_lag1` | 0,14 | **0,85** |
+| `total_postes` (estática) | 0,04 | **0,80** |
+
+**Nenhuma feature passa de 0,15 de correlação com o alvo binário — nem o próprio histórico do
+bairro.** Contra a contagem, a mesma feature de histórico chega a 0,89. A classificação binária
+neste nível de agregação está estruturalmente quebrada pela prevalência de ~95%; a contagem
+preserva toda a informação.
+
+**Decisão: o `treinar.py` prevê `chamados_mes_seguinte` (regressão), não `teve_chamado_mes_seguinte`
+(classificação).** A previsão vira "risco de 0 a 1" normalizando por percentil entre os bairros do
+mesmo mês — mantém o contrato já documentado no `MACHINE_LEARNING.md` (potência 90/80/70 por faixa
+de risco) — e avaliada pela **"precisão no top 10%"** da seção 4 do `MACHINE_LEARNING.md`, que já é
+uma métrica de ranking e se encaixa na regressão de forma mais natural do que na classificação
+binária original. O rótulo binário continua salvo na base, caso o relatório queira comparar as
+duas abordagens, mas não é mais o alvo principal. Números completos e o gráfico de comparação estão
+na seção 5 do [notebook de exploração](notebooks/01_exploracao.ipynb).
 
 ---
 
@@ -146,11 +175,13 @@ se os dados mudarem. Principais achados (além do que já está nas seções aci
 
 - **Boa Viagem concentra muito mais chamados que qualquer outro bairro** (~9.300 no período, quase
   o dobro do 2º colocado, Santo Amaro). Faz sentido usar isso como "estudo de caso" na apresentação.
-- **98,4% dos postes já são LED**, em média por bairro — a transição para LED na cidade já está bem
+- **98,3% dos postes já são LED**, em média por bairro — a transição para LED na cidade já está bem
   avançada, não há muita variação de `pct_led` entre bairros pra usar como feature forte sozinha.
 - Não há uma relação linear clara entre `% LED` e volume de chamados no gráfico de dispersão — o
   volume parece dominado pelo tamanho do bairro (mais postes = mais chamados em termos absolutos),
   reforçando a necessidade de uma feature de exposição (`total_postes`) no modelo.
+- **A decisão de alvo da seção 5** (contagem, não binário) é o achado mais importante do notebook —
+  feito comparando a correlação de cada feature contra as duas opções de rótulo.
 
 ---
 
@@ -162,8 +193,9 @@ se os dados mudarem. Principais achados (além do que já está nas seções aci
 - [x] `data/raw/` baixado (postes 2025 + 156 de 2022-2025 + dicionário)
 - [x] `src/preparar_dados.py` (normalização, cruzamento por bairro, rótulo, split treino/teste)
 - [x] `notebooks/01_exploracao.ipynb` (EDA + visualizações, seção 2.0 do `MACHINE_LEARNING.md`)
-- [ ] `src/treinar.py` (`RandomForestClassifier`/`GradientBoostingClassifier` vs. regra simples,
-      métricas da seção 4 do `MACHINE_LEARNING.md`, cada treino como uma run do **MLflow**)
+- [ ] `src/treinar.py` (`RandomForestRegressor`/`GradientBoostingRegressor` prevendo
+      `chamados_mes_seguinte`, seção 5 acima, vs. regra simples, métricas da seção 4 do
+      `MACHINE_LEARNING.md`, cada treino como uma run do **MLflow**)
 - [ ] `src/api.py` (FastAPI servindo a inferência do modelo registrado)
 - [ ] `src/publicar_risco.py` (chama a API e publica risco + comando no MQTT)
 - [ ] `dags/risco_dag.py` (Airflow: orquestra os três scripts acima)

@@ -11,6 +11,12 @@ Saida:    applications/ml/data/processed/postes_por_bairro.csv
 Decisao de cruzamento (ver applications/ml/README.md): por BAIRRO, nao por
 coordenada/endereco, porque so 36% dos chamados de iluminacao tem
 latitude/longitude preenchida, contra 100% de preenchimento do bairro.
+
+O painel final tem features de defasagem (chamados_lag1/2/3, media_movel_3m) e
+dois alvos: o binario teve_chamado_mes_seguinte (legado) e chamados_mes_seguinte
+(contagem). O alvo principal para o treinar.py e a CONTAGEM, nao o binario -- a
+EDA mostrou o binario com no maximo 0,15 de correlacao com qualquer feature
+(secao 5 do README), contra ate 0,89 na contagem.
 """
 
 import re
@@ -38,13 +44,31 @@ CODIGOS_LAMPADA_APAGADA = [
 ]
 
 
+# Erros de digitacao no cadastro de postes que a normalizacao (acento/caixa/espaco)
+# nao resolve sozinha, porque sao letras diferentes, nao so formatacao. Achados
+# comparando a lista de bairros do cadastro em ordem alfabetica: cada um tem poucos
+# postes (1 a 8) perto de uma variante correta com centenas/milhares (ver README).
+CORRECOES_BAIRRO = {
+    "CIDADDE UNIVERSITARIA": "CIDADE UNIVERSITARIA",
+    "IMBIRBEIRA": "IMBIRIBEIRA",
+    "TEJIIPIO": "TEJIPIO",
+}
+
+# Nao e um bairro de verdade, e sim um valor de preenchimento da Central 156
+# (54 chamados em 4 anos, so em 2024) para quando o atendente nao registrou o
+# bairro. Fica de fora do painel por bairro em vez de virar uma categoria.
+BAIRRO_DESCARTAR = "BAIRRO NAO INFORMADO"
+
+
 def normalizar_bairro(texto: str) -> str:
     """Deixa o nome do bairro comparavel entre as duas bases: sem acento,
-    maiusculo, sem espaco duplicado nas pontas ou no meio."""
+    maiusculo, sem espaco duplicado nas pontas ou no meio, com os erros de
+    digitacao conhecidos corrigidos (CORRECOES_BAIRRO)."""
     if not isinstance(texto, str):
         return ""
     sem_acento = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("ascii")
-    return re.sub(r"\s+", " ", sem_acento).strip().upper()
+    normalizado = re.sub(r"\s+", " ", sem_acento).strip().upper()
+    return CORRECOES_BAIRRO.get(normalizado, normalizado)
 
 
 def carregar_postes() -> pd.DataFrame:
@@ -105,9 +129,13 @@ def carregar_chamados_lampada_apagada() -> pd.DataFrame:
 
     chamados["bairro_norm"] = chamados["BAIRRO"].map(normalizar_bairro)
 
+    descartados = (chamados["bairro_norm"] == BAIRRO_DESCARTAR).sum()
+    chamados = chamados[chamados["bairro_norm"] != BAIRRO_DESCARTAR].copy()
+
     print(f"Chamados brutos (4 anos): {antes}")
     print(f"  duplicados exatos entre arquivos removidos: {duplicados_removidos}")
-    print(f"  'manutencao em lampada apagada' (os dois codigos) dentro do periodo {PRIMEIRO_MES} a {ULTIMO_MES}: {len(chamados)}")
+    print(f"  'manutencao em lampada apagada' (os dois codigos) dentro do periodo {PRIMEIRO_MES} a {ULTIMO_MES}: {len(chamados) + descartados}")
+    print(f"  descartados por bairro nao informado: {descartados}")
 
     return chamados
 
@@ -139,15 +167,39 @@ def montar_painel_bairro_mes(chamados: pd.DataFrame, bairros_postes: set) -> pd.
     return painel
 
 
-def aplicar_rotulo_e_split(painel: pd.DataFrame) -> pd.DataFrame:
+def adicionar_features_defasagem(painel: pd.DataFrame) -> pd.DataFrame:
+    """Features de historico por bairro: sem elas, o modelo so enxerga
+    caracteristicas estaticas do cadastro (potencia, % LED, RPA), que a EDA
+    mostrou terem correlacao fraca com o rotulo (ver notebook, secao 5). O
+    proprio historico de chamados e o sinal mais forte disponivel."""
     painel = painel.sort_values(["bairro_norm", "ano_mes"]).reset_index(drop=True)
-    teve_chamado = painel["chamados_lampada_apagada"] > 0
+    por_bairro = painel.groupby("bairro_norm")["chamados_lampada_apagada"]
 
-    painel["teve_chamado_mes_seguinte"] = (
-        teve_chamado.groupby(painel["bairro_norm"]).shift(-1)
-    )
+    painel["chamados_lag1"] = por_bairro.shift(1)
+    painel["chamados_lag2"] = por_bairro.shift(2)
+    painel["chamados_lag3"] = por_bairro.shift(3)
+    painel["media_movel_3m"] = por_bairro.transform(lambda s: s.shift(1).rolling(3).mean())
+
+    # As primeiras linhas de cada bairro nao tem 3 meses de historico anterior
+    # (comeco da serie, 2022-01 a 2022-03) - sem lag, ficariam fora do padrao
+    # do resto e tem que sair antes de treinar.
+    painel = painel.dropna(subset=["chamados_lag1", "chamados_lag2", "chamados_lag3", "media_movel_3m"])
+    return painel.reset_index(drop=True)
+
+
+def aplicar_rotulo_e_split(painel: pd.DataFrame) -> pd.DataFrame:
+    teve_chamado = painel["chamados_lampada_apagada"] > 0
+    por_bairro = painel.groupby("bairro_norm")
+
+    # Rotulo principal (classificacao, usado no MQTT/dashboard: risco 0-1) e o
+    # valor bruto do mes seguinte como auxiliar, para quem quiser comparar com
+    # uma abordagem de regressao/ranking (ver decisao na secao 5 do notebook).
+    painel["teve_chamado_mes_seguinte"] = teve_chamado.groupby(painel["bairro_norm"]).shift(-1)
+    painel["chamados_mes_seguinte"] = por_bairro["chamados_lampada_apagada"].shift(-1)
+
     painel = painel.dropna(subset=["teve_chamado_mes_seguinte"]).copy()
     painel["teve_chamado_mes_seguinte"] = painel["teve_chamado_mes_seguinte"].astype(int)
+    painel["chamados_mes_seguinte"] = painel["chamados_mes_seguinte"].astype(int)
 
     painel["conjunto"] = painel["ano_mes"].map(lambda am: "treino" if am < "2025-01" else "teste")
     return painel
@@ -163,6 +215,16 @@ def main() -> None:
     chamados = carregar_chamados_lampada_apagada()
     painel = montar_painel_bairro_mes(chamados, set(postes_por_bairro["bairro_norm"]))
     painel = painel.merge(postes_por_bairro, on="bairro_norm", how="left")
+
+    # Bairros que tem chamado mas nenhum poste cadastrado (grafia composta que
+    # nao bate com o cadastro, ver README) nao tem nenhuma feature de poste -
+    # ficam de fora do que vai pro modelo em vez de entrar com tudo faltando.
+    orfaos = painel["total_postes"].isna()
+    if orfaos.any():
+        print(f"Linhas descartadas por bairro sem poste cadastrado: {orfaos.sum()} ({painel.loc[orfaos, 'bairro_norm'].nunique()} bairros)")
+    painel = painel[~orfaos].copy()
+
+    painel = adicionar_features_defasagem(painel)
     painel = aplicar_rotulo_e_split(painel)
     painel.to_csv(DADOS_PROCESSADOS / "risco_bairro_mes.csv", index=False)
 
@@ -171,6 +233,14 @@ def main() -> None:
     print(painel["conjunto"].value_counts())
     print("Proporcao de 'teve_chamado_mes_seguinte=1':")
     print(painel.groupby("conjunto")["teve_chamado_mes_seguinte"].mean().round(3))
+    print()
+    print("Correlacao de cada feature de defasagem com o rotulo (treino):")
+    treino = painel[painel["conjunto"] == "treino"]
+    print(
+        treino[["chamados_lampada_apagada", "chamados_lag1", "media_movel_3m", "teve_chamado_mes_seguinte"]]
+        .corr()["teve_chamado_mes_seguinte"]
+        .round(3)
+    )
     print()
     print(f"Salvo em {DADOS_PROCESSADOS / 'postes_por_bairro.csv'}")
     print(f"Salvo em {DADOS_PROCESSADOS / 'risco_bairro_mes.csv'}")
