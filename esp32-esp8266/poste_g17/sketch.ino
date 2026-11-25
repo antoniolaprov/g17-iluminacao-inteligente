@@ -1,5 +1,5 @@
 // =============================================================
-//  Poste Inteligente G17 - v2.13 (FreeRTOS + Wi-Fi + MQTT)
+//  Poste Inteligente G17 - v2.14 (FreeRTOS + Wi-Fi + MQTT)
 //  CESAR School - Sistemas Embarcados
 //
 //  Hardware: a luminaria e um mini poste de maquete (LED 3 V) no GPIO18,
@@ -53,7 +53,7 @@ const int  LIMIAR_DIA    = 2700;    // so volta a ser dia acima disso (histerese
 #endif
 const bool  RGB_ANODO_COMUM           = false;
 const float DIST_PRESENCA_CM          = 5;      // escala da maquete (menor distancia confiavel do HC-SR04)
-const unsigned long TEMPO_PRESENCA_MS = 2000;   // luz forte por 2 s depois que o pedestre sai (antes 10 s)
+const unsigned long TEMPO_PRESENCA_MS = 500;    // luz forte por 0,5 s depois que o pedestre sai (antes 2 s)
 #if SIMULACAO
 const float GAMMA_LUMINARIA           = 2.2;    // correcao gama: brilho percebido (1.0 = PWM linear)
 #else
@@ -106,7 +106,7 @@ float distanciaCm() {
   digitalWrite(PINO_TRIG, LOW);  delayMicroseconds(2);
   digitalWrite(PINO_TRIG, HIGH); delayMicroseconds(10);
   digitalWrite(PINO_TRIG, LOW);
-  unsigned long duracao = pulseIn(PINO_ECHO, HIGH, 30000);
+  unsigned long duracao = pulseIn(PINO_ECHO, HIGH, 6000);   // ~1 m: basta na maquete e a leitura vazia fica rapida
   if (duracao == 0) return 999;   // nada detectado
   float cm = duracao / 58.0;
   if (cm < 2) return 999;         // o HC-SR04 nao mede abaixo de 2 cm: eco falso
@@ -168,7 +168,7 @@ void tarefaSensores(void* param) {
 }
 
 // =============================================================
-//  TAREFA 2 - Controle da luz (a cada 50 ms)
+//  TAREFA 2 - Controle da luz (a cada 20 ms)
 // =============================================================
 void tarefaControle(void* param) {
   unsigned long ultimoLog = 0;
@@ -230,7 +230,7 @@ void tarefaControle(void* param) {
       }
     }
 
-    vTaskDelay(pdMS_TO_TICKS(50));
+    vTaskDelay(pdMS_TO_TICKS(20));
   }
 }
 
@@ -382,7 +382,7 @@ void setup() {
   mutexEstado = xSemaphoreCreateMutex();
   mutexSerial = xSemaphoreCreateMutex();
 
-  logf("Poste inteligente G17 v2.13 iniciado (FreeRTOS + MQTT)");
+  logf("Poste inteligente G17 v2.14 iniciado (FreeRTOS + MQTT)");
 #if USAR_REDE
   logf("[WiFi] conectando...");
 #else
