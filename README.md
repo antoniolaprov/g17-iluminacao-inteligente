@@ -43,9 +43,10 @@ Para a disciplina, um **ESP32** representa um poste, com componentes que simulam
 | Indicador para o técnico | LED RGB de status |
 | Rede da cidade | Wi-Fi + MQTT |
 
-A montagem física está concluída: **3 postes físicos** (sensores, luminária e rede testados e
-funcionando), faltando só decorar a maquete. A demonstração final junta esses postes físicos com
-postes simulados enviando dados para o mesmo painel.
+A montagem física está concluída: **um ESP32 (o poste `P01`) controlando 3 mini postes de maquete**,
+ligados juntos no mesmo pino, com sensores, luminária e rede testados e funcionando. Falta só decorar a
+maquete. A demonstração final junta esse poste físico com postes simulados (`P02` em diante) enviando
+dados para o mesmo painel.
 
 ---
 
@@ -168,13 +169,15 @@ desligar ou perder a conexão sem avisar. Assim a central sabe na hora que um po
 |---|---|
 | 18 | Luminária: mini poste LED 3 V. Fio vermelho via resistor de 100 Ω neste pino, fio branco no GND. Até 3 postes em paralelo, cada um com o seu resistor (no Wokwi: LED RGB com R, G e B juntos) |
 | 19 / 21 / 5 | LED RGB **de status** R / G / B (220 / 100 / 100 Ω) |
-| 26 / 27 | HC-SR04 TRIG / ECHO (ECHO com divisor de tensão, ver abaixo) |
+| 26 / 27 | HC-SR04 TRIG / ECHO (na montagem, ECHO ligado direto, ver abaixo) |
 | 34 | Sensor de luz de 2 pernas em divisor com 10 kΩ: `3V3 → sensor → GPIO34 → 10 kΩ → GND` (no Wokwi: módulo de 4 pinos, pino AO) |
 | 35 | Potenciômetro (simula desgaste) |
 | 2 | LED da placa (aceso = conectado à central) |
 
-O **HC-SR04 precisa de 5 V**: alimente-o pelo pino **VIN** (5 V vindos do USB) e use um
-**divisor de tensão no ECHO**, porque o sensor devolve 5 V e o ESP32 só aguenta 3,3 V:
+O **HC-SR04 precisa de 5 V**: alimente-o pelo pino **VIN** (5 V vindos do USB), porque em 3,3 V ele não
+responde. Na montagem do grupo, o **ECHO está ligado direto no GPIO27**, por orientação do professor, e
+funciona. Como o ECHO devolve 5 V e o ESP32 é de 3,3 V, o recomendado para um poste de verdade é um
+**divisor de tensão no ECHO**:
 
 ```
 ECHO ──── 1 kΩ ────┬──── GPIO27
@@ -229,7 +232,7 @@ Para gravar na placa física, mude `#define SIMULACAO 1` para `0` e preencha o n
 - [x] Telemetria e comandos via MQTT + LWT
 - [x] Fail-safe com carência de 15 s
 - [x] Testes no simulador ([registro](docs/testes_wokwi.md))
-- [x] Montagem física (3 postes físicos; falta só decorar a maquete)
+- [x] Montagem física (1 ESP32 = poste `P01`, com 3 mini postes no GPIO18; falta só decorar a maquete)
 - [x] Dashboard web recebendo telemetria e enviando comando (testado com a placa real)
 - [ ] IPv6
 - [ ] Central: Mosquitto local + SQLite (hoje ainda é só o broker público HiveMQ, sem persistência)
