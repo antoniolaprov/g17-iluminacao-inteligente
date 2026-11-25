@@ -1,0 +1,87 @@
+{
+  "treinado_em": "2026-11-25T18:13:34",
+  "modelo": "poisson_glm",
+  "parametros": {
+    "transformacao": "log1p + padronizacao",
+    "alpha": 0.001
+  },
+  "features": [
+    "chamados_lampada_apagada",
+    "chamados_lag1",
+    "chamados_lag2",
+    "chamados_lag3",
+    "media_movel_3m",
+    "total_postes",
+    "postes_sem_id",
+    "potencia_media_w",
+    "pct_led",
+    "rpa",
+    "mes_do_ano",
+    "taxa_1000_postes"
+  ],
+  "alvo": "chamados_mes_seguinte",
+  "mes_previsto": "2025-12",
+  "vence_regra_simples_na_validacao": true,
+  "metricas": {
+    "regra_persistencia": {
+      "val_mae": 9.5505,
+      "val_rmse": 15.649,
+      "val_precisao_top10": 0.7315,
+      "val_precisao_top10_taxa": 0.5278,
+      "teste_mae": 9.2074,
+      "teste_rmse": 13.853,
+      "teste_precisao_top10": 0.8056,
+      "teste_precisao_top10_taxa": 0.4815
+    },
+    "regra_media_movel_3m": {
+      "val_mae": 8.927,
+      "val_rmse": 14.5381,
+      "val_precisao_top10": 0.7778,
+      "val_precisao_top10_taxa": 0.5556,
+      "teste_mae": 8.6622,
+      "teste_rmse": 13.6484,
+      "teste_precisao_top10": 0.75,
+      "teste_precisao_top10_taxa": 0.5741
+    },
+    "random_forest": {
+      "val_mae": 9.2493,
+      "val_rmse": 16.2083,
+      "val_precisao_top10": 0.7778,
+      "val_precisao_top10_taxa": 0.5648,
+      "teste_mae": 7.9026,
+      "teste_rmse": 12.171,
+      "teste_precisao_top10": 0.7963,
+      "teste_precisao_top10_taxa": 0.5463
+    },
+    "gradient_boosting": {
+      "val_mae": 10.0433,
+      "val_rmse": 17.7934,
+      "val_precisao_top10": 0.75,
+      "val_precisao_top10_taxa": 0.5,
+      "teste_mae": 8.2581,
+      "teste_rmse": 13.4249,
+      "teste_precisao_top10": 0.7593,
+      "teste_precisao_top10_taxa": 0.537
+    },
+    "hist_gb_poisson": {
+      "val_mae": 9.9472,
+      "val_rmse": 17.5391,
+      "val_precisao_top10": 0.7593,
+      "val_precisao_top10_taxa": 0.5,
+      "teste_mae": 8.273,
+      "teste_rmse": 12.968,
+      "teste_precisao_top10": 0.7778,
+      "teste_precisao_top10_taxa": 0.5463
+    },
+    "poisson_glm": {
+      "val_mae": 8.299,
+      "val_rmse": 13.8638,
+      "val_precisao_top10": 0.7685,
+      "val_precisao_top10_taxa": 0.5833,
+      "teste_mae": 7.804,
+      "teste_rmse": 12.0658,
+      "teste_precisao_top10": 0.7963,
+      "teste_precisao_top10_taxa": 0.5463
+    }
+  }
+}

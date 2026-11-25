@@ -1,0 +1,17 @@
+{
+  "_comentario": "Liga cada poste (fisico ou simulado) a um bairro real do Recife. O risco publicado no MQTT e o do bairro. criterio_risco escolhe o ranking usado: 'contagem' (chamados previstos) ou 'taxa' (chamados previstos por 1.000 postes), ver applications/ml/README.md secao 5. id_ponto (poste real do cadastro) fica null ate alguem com os dados brutos escolher um.",
+  "criterio_risco": "contagem",
+  "potencia_por_classe": { "alto": 90, "medio": 80, "baixo": 70 },
+  "postes": {
+    "P01": { "bairro": "BOA VIAGEM", "id_ponto": null, "observacao": "maquete fisica (ESP32 com 3 mini postes)" },
+    "P02": { "bairro": "SANTO AMARO", "id_ponto": null, "observacao": "simulador" },
+    "P03": { "bairro": "BOA VISTA", "id_ponto": null, "observacao": "simulador" },
+    "P04": { "bairro": "CASA AMARELA", "id_ponto": null, "observacao": "simulador" },
+    "P05": { "bairro": "ENCRUZILHADA", "id_ponto": null, "observacao": "simulador" },
+    "P06": { "bairro": "GRACAS", "id_ponto": null, "observacao": "simulador" },
+    "P07": { "bairro": "TORRE", "id_ponto": null, "observacao": "simulador" },
+    "P08": { "bairro": "JAQUEIRA", "id_ponto": null, "observacao": "simulador" },
+    "P09": { "bairro": "APIPUCOS", "id_ponto": null, "observacao": "simulador" },
+    "P10": { "bairro": "MONTEIRO", "id_ponto": null, "observacao": "simulador" }
+  }
+}

@@ -222,21 +222,69 @@ se os dados mudarem. Principais achados (além do que já está nas seções aci
 
 ---
 
-## 7. Próximos passos (estrutura do `MACHINE_LEARNING.md`, seção 6)
+## 7. Modelo treinado (25/11)
 
-> Confirmado em 24/11: MLflow, Airflow, API e Docker são requisito desta disciplina, não "extra".
-> A lista abaixo já reflete isso.
+`src/treinar.py` compara 4 modelos e as 2 regras simples, registra cada um como uma run no **MLflow**
+(experimento `risco_bairro`) e registra o escolhido no Model Registry (`risco_bairro`).
+
+**Como escolhe, sem olhar o teste:** dentro do treino, os últimos 12 meses de alvo (2024) são a
+validação. O escolhido é o de menor MAE na validação. O teste (alvos de 2025) só é medido para o
+relatório. Depois, o escolhido é retreinado com tudo e prevê o mês seguinte ao último dado (2025-12).
+
+| Modelo | MAE validação | MAE teste | RMSE teste | Precisão top 10% (teste) | Top 10% por taxa (teste) |
+|---|---|---|---|---|---|
+| **`poisson_glm`** (escolhido) | **8,30** | **7,80** | **12,07** | 0,80 | 0,55 |
+| regra `media_movel_3m` | 8,93 | 8,66 | 13,65 | 0,75 | 0,57 |
+| `random_forest` | 9,25 | 7,90 | 12,17 | 0,80 | 0,55 |
+| regra persistência | 9,55 | 9,21 | 13,85 | **0,81** | 0,48 |
+| `hist_gb_poisson` | 9,95 | 8,27 | 12,97 | 0,78 | 0,55 |
+| `gradient_boosting` | 10,04 | 8,26 | 13,43 | 0,76 | 0,54 |
+
+**Leitura honesta para o relatório:**
+- O `poisson_glm` (regressão de Poisson sobre o log das features, um modelo feito para contagens) é o
+  único que **vence a melhor regra na validação** e também tem o **menor MAE no teste** (7,80, abaixo
+  da meta de 8,66).
+- Na **precisão no top 10%** nenhum modelo passa a persistência (0,81): para "quais 9 bairros vão ter
+  mais chamados", repetir o mês atual já é muito bom. O ganho do modelo está em errar menos o volume.
+- Os modelos de árvore erram mais na validação do que no teste: com só ~1.900 linhas de ajuste e
+  séries muito persistentes, eles decoram o histórico. Modelos lineares/de contagem generalizam melhor
+  aqui.
+- Por taxa (chamados por 1.000 postes), todos ficam em ~0,55: prever **onde cada poste falha mais** é
+  bem mais difícil do que prever onde há mais volume.
+
+**Saídas** (em `models/`, pequenas, vão para o Git para a API funcionar logo depois do clone):
+`risco_por_bairro.csv` (risco de cada bairro por contagem e por taxa), `metadados.json` (modelo,
+features, métricas de todos) e `modelo_risco.joblib` (o modelo, ~3 KB). O MLflow local
+(`mlflow.db`, `mlruns/`) fica fora do Git.
+
+**API** (`src/api.py`, FastAPI): `GET /saude`, `GET /risco/{bairro}`, `GET /riscos`,
+`GET /poste/{id}` e `POST /prever` (previsão do modelo para features enviadas). Documentação
+interativa em `/docs`.
+
+**Publicação** (`src/publicar_risco.py`): para cada poste do `config.json`, publica
+`g17/poste/<ID>/risco` (retido) e o comando de potência (alto 90, médio 80, baixo 70). O dashboard mostra
+o risco no card do poste.
+
+**Airflow** (`dags/risco_dag.py`): `preparar_dados → treinar → publicar_risco`, mensal.
+
+Como rodar tudo: [`applications/README.md`](../README.md).
+
+---
+
+## 8. Situação
 
 - [x] `data/raw/` baixado (postes 2025 + 156 de 2022-2025 + dicionário)
-- [x] `src/preparar_dados.py` (normalização, cruzamento por bairro, rótulo, split treino/teste)
-- [x] `notebooks/01_exploracao.ipynb` (EDA + visualizações, seção 2.0 do `MACHINE_LEARNING.md`)
-- [ ] `src/treinar.py` (`RandomForestRegressor`/`GradientBoostingRegressor` prevendo
-      `chamados_mes_seguinte`, seção 5 acima, vs. regra simples, métricas da seção 4 do
-      `MACHINE_LEARNING.md`, cada treino como uma run do **MLflow**)
-- [ ] `src/api.py` (FastAPI servindo a inferência do modelo registrado)
-- [ ] `src/publicar_risco.py` (chama a API e publica risco + comando no MQTT)
-- [ ] `dags/risco_dag.py` (Airflow: orquestra os três scripts acima)
-- [ ] `Dockerfile` + `docker-compose.yml` (Mosquitto + coletor + API + MLflow + Airflow)
-- [ ] `config.json` (mapear o poste `P01` da maquete para um `id_ponto` e um bairro reais do cadastro;
-      os 3 mini postes da maquete estão no mesmo ESP32/GPIO18, então são **um** poste lógico)
-- [ ] Rodar o notebook de novo depois da correção do split (seção 5)
+- [x] `src/preparar_dados.py` (normalização, cruzamento por bairro, alvo, split pelo mês do alvo)
+- [x] `notebooks/01_exploracao.ipynb` (EDA + visualizações)
+- [x] `src/treinar.py` (comparação de modelos e regras, MLflow, Model Registry)
+- [x] `src/api.py` (FastAPI)
+- [x] `src/publicar_risco.py` (risco + comando no MQTT)
+- [x] `dags/risco_dag.py` (Airflow)
+- [x] `Dockerfile` + `docker-compose.yml` (em `applications/`)
+- [x] `config.json` (P01 = Boa Viagem; P02..P10 = bairros com riscos alto, médio e baixo)
+- [ ] Rodar o notebook de EDA de novo (as saídas são de antes da correção do split)
+- [ ] `notebooks/02_modelo.ipynb` com gráficos da comparação e da importância das variáveis, para o
+      relatório
+- [ ] Decidir qual ranking vira o risco publicado: contagem (padrão) ou taxa (`criterio_risco` no
+      `config.json`)
+- [ ] Escolher um `id_ponto` real para o `P01` no `config.json` (precisa dos dados brutos)
