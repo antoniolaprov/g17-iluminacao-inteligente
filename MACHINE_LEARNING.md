@@ -4,6 +4,12 @@ Guia para quem vai desenvolver a parte de machine learning do **Poste de Ilumina
 Leia junto com o [README](README.md), que explica o projeto, e com o [contexto completo](docs/CONTEXTO_PARA_IA.md),
 que tem todos os detalhes técnicos e pode ser entregue para uma IA de apoio.
 
+> **Revisão de 25/11:** este plano foi conferido contra os dados processados e o código. Foram corrigidos
+> o vazamento no split treino/teste (seção 2.1), textos que diziam que 2022-2023 tinha chamados "quase em
+> zero" (não é verdade, seção 2.0), e foram acrescentadas as regras simples que o modelo precisa vencer,
+> com números reais (seção 4). O contexto completo do projeto inteiro, para IAs, está em
+> [`docs/CONTEXTO_PARA_IA.md`](docs/CONTEXTO_PARA_IA.md).
+>
 > **Situação em 24/11/2026:** dados baixados e cruzados. O cadastro de postes (2025) e os chamados da
 > Central 156 (2022-2025) já foram baixados, o dicionário de dados foi lido e a decisão de cruzar as duas
 > bases **por bairro** (não por poste/coordenada) foi tomada e já está implementada. Detalhes, números reais
@@ -51,29 +57,38 @@ Mosquitto, o coletor, a API e o Airflow rodam como containers Docker (seção 6)
 ### 2.0 Obrigatório: EDA e visualizações
 
 Antes de treinar qualquer modelo: notebook (`notebooks/01_exploracao.ipynb`) com, no mínimo:
-- chamados de "lâmpada apagada" por mês (ver a queda abrupta em 2022-2023 documentada no
-  [`applications/ml/README.md`](applications/ml/README.md) — isso já é um achado para mostrar);
+- chamados de "lâmpada apagada" por mês: cerca de 1.700 a 3.500 por mês em 2022-2023 e 2.200 a 3.400 em
+  2024-2025, uma tendência de alta sem quebra. **Atenção:** só aparece assim filtrando pelos **dois** pares
+  de código de serviço (seção 2 do [`applications/ml/README.md`](applications/ml/README.md)); filtrando pelo
+  texto, 2022-2023 some, e uma versão antiga deste plano confundiu isso com uma "queda abrupta";
 - chamados por bairro (top 10 e bottom 10);
 - distribuição de `tipo_lampa` e `pct_led` por bairro (quanto da cidade já é LED);
-- balanço da classe do rótulo (`teve_chamado_mes_seguinte`), que já sabemos estar em ~91% positivo.
+- balanço da classe do rótulo binário (`teve_chamado_mes_seguinte`): ~95-97% positivo, e foi por isso
+  que o alvo virou a contagem (seção 2.1).
 
 ### 2.1 Principal: risco de falha (manutenção preditiva)
 
 Prever **quais postes ou bairros têm mais chance de ter chamado de "lâmpada apagada"** no próximo período.
 
-- **Entrada:** características do poste (tipo de lâmpada, tipo de luminária, potência, bairro, RPA, data de
-  atualização), features de defasagem (`chamados_lag1/2/3`, `media_movel_3m`) e o histórico de chamados de
-  iluminação da região.
+- **Unidade:** **bairro × mês** (94 bairros), não poste a poste: os chamados só têm o bairro confiável
+  (seção 3.2).
+- **Entrada:** as colunas de `applications/ml/data/processed/risco_bairro_mes.csv`: o histórico do bairro
+  (`chamados_lampada_apagada` do mês, `chamados_lag1/2/3`, `media_movel_3m`) e as features do cadastro
+  agregadas por bairro (`total_postes`, `postes_sem_id`, `potencia_media_w`, `pct_led`, `rpa`). Pode criar
+  features novas (mês do ano, taxa por 1.000 postes etc.), sempre usando só o passado.
 - **Rótulo — decidido em 24/11, não é mais sim/não:** a EDA (seção 5 do
   [`applications/ml/README.md`](applications/ml/README.md)) mostrou que o binário "teve chamado no mês
   seguinte" correlaciona no máximo 0,15 com qualquer feature (a classe positiva é ~95% das linhas, não dá
   pra discriminar nada), enquanto a **contagem** de chamados do mês seguinte correlaciona até 0,89 com o
   histórico do bairro. **O alvo é `chamados_mes_seguinte` (regressão/ranking)**, convertido em risco de 0 a
   1 por percentil entre os bairros do mesmo mês.
-- **Validação:** split temporal (2022-2024 treino, 2025 teste — já implementado no `preparar_dados.py`),
-  nunca aleatório, porque o objetivo é prever o futuro.
+- **Validação:** split temporal **pelo mês do alvo** (já implementado no `preparar_dados.py` e na coluna
+  `conjunto`): treino prevê até 2024-12, teste prevê os meses de 2025. Nunca aleatório, porque o objetivo é
+  prever o futuro. *Corrigido em 25/11: antes a linha de 2024-12, cujo alvo é 2025-01, ficava no treino.*
+  Para escolher hiperparâmetros, use validação também temporal dentro do treino (ex.:
+  `TimeSeriesSplit`), nunca o conjunto de teste.
 - **Modelos a comparar:** pelo menos `RandomForestRegressor` e `GradientBoostingRegressor` do
-  scikit-learn, contra uma regra simples (ex.: `media_movel_3m`) e contra a seção 4. **Cada treino é uma
+  scikit-learn, contra as regras simples da seção 4 (persistência e `media_movel_3m`). **Cada treino é uma
   run do MLflow** (`mlflow.log_param`/`log_metric`/`log_model`), para comparar os experimentos pela UI do
   MLflow (`mlflow ui`) em vez de só print no terminal.
 - **Saída:** um número de 0 a 1 (risco, normalizado por percentil a partir da contagem prevista) por
@@ -103,6 +118,10 @@ em 70% quando não há ninguém na rua. É uma conta simples e dá um número co
 Portal de dados abertos da Prefeitura do Recife (licença ODbL).
 
 ### 3.1 Cadastro de postes de iluminação pública
+
+> As colunas que o `preparar_dados.py` usa (`bairro`, `rpa`, `tipo_lampa`, `potencia`, `id_ponto`) foram
+> conferidas no arquivo real. `consumo_kw` e `consumo_1` vêm com valores absurdos e **não devem ser
+> usadas** (detalhes no [`applications/ml/README.md`](applications/ml/README.md)).
 
 - **Página:** https://dados.recife.pe.gov.br/dataset/postes-iluminacao-publica-do-recife
 - **Arquivos:** um CSV por ano, de 2022 a 2025 (o de 2025 tem cerca de 24 MB).
@@ -141,8 +160,21 @@ Portal de dados abertos da Prefeitura do Recife (licença ODbL).
 | O que medir | Por quê |
 |---|---|
 | **MAE/RMSE da contagem prevista** | Erro básico da regressão (`chamados_mes_seguinte` previsto vs. real) |
-| **Precisão no top 10%** | "Dos bairros que o modelo apontou como mais prováveis, quantos de fato tiveram volume alto no mês seguinte?" Métrica de ranking, é a que a Emlurb usaria, e se encaixa na regressão |
-| **Comparação com uma regra simples** | Ex.: "risco = `media_movel_3m`" ou "chamados do bairro no ano anterior". O modelo só vale a pena se for melhor que isso |
+| **Precisão no top 10%** | Em cada mês do teste, pegue os 9 bairros (10% de 94) com maior previsão e os 9 com maior contagem real; a precisão é quantos estão nos dois grupos ÷ 9, com média nos 12 meses. É a métrica que a Emlurb usaria para mandar equipes |
+| **Comparação com regras simples** | O modelo só vale a pena se for melhor que elas (tabela abaixo) |
+
+**Regras simples, já medidas no conjunto de teste (25/11):**
+
+| Regra | MAE | Precisão no top 10% |
+|---|---|---|
+| Persistência: "mês seguinte = mês atual" | 9,21 | **0,81** |
+| `media_movel_3m` | **8,66** | 0,75 |
+| Só o tamanho do bairro (`total_postes`) | — | 0,66 |
+
+**Meta do modelo: MAE abaixo de 8,66 e precisão no top 10% acima de 0,81.** Se não conseguir, isso também é
+um resultado honesto para o relatório (o histórico recente já explica quase tudo), e vale explicar por quê.
+Como só o tamanho do bairro já acerta 66%, veja também a recomendação de "risco por taxa" na seção 5 do
+[`applications/ml/README.md`](applications/ml/README.md).
 
 Coloque esses números no relatório, com um gráfico da importância das variáveis.
 
@@ -194,6 +226,10 @@ que o firmware/dashboard já usam).
    cuida do dashboard.
 
 ### 5.4 Ligar a maquete a um poste real
+
+A maquete tem **um ESP32**, que é o poste **`P01`**. Os 3 mini postes da maquete estão ligados no mesmo
+pino (GPIO18) e acendem juntos, então contam como **um** poste lógico. Os postes `P02` em diante são do
+simulador (ainda a fazer).
 
 Escolha um poste do cadastro (um `id_ponto` de um bairro com muitos chamados dá uma boa história) e guarde o
 mapeamento num arquivo, por exemplo `applications/ml/config.json`:

@@ -14,7 +14,7 @@ latitude/longitude preenchida, contra 100% de preenchimento do bairro.
 
 O painel final tem features de defasagem (chamados_lag1/2/3, media_movel_3m) e
 dois alvos: o binario teve_chamado_mes_seguinte (legado) e chamados_mes_seguinte
-(contagem). O alvo principal para o treinar.py e a CONTAGEM, nao o binario -- a
+(contagem). O split treino/teste e pelo mes do alvo (treino preve ate 2024-12). O alvo principal para o treinar.py e a CONTAGEM, nao o binario -- a
 EDA mostrou o binario com no maximo 0,15 de correlacao com qualquer feature
 (secao 5 do README), contra ate 0,89 na contagem.
 """
@@ -124,6 +124,10 @@ def carregar_chamados_lampada_apagada() -> pd.DataFrame:
     chamados = chamados[filtro].copy()
 
     chamados["data_demanda"] = pd.to_datetime(chamados["DATA_DEMANDA"], errors="coerce")
+    # errors="coerce" vira NaT em silencio se o formato da data mudar entre os anos
+    # (ex.: dia/mes/ano num arquivo e ano-mes-dia noutro): conferir que fica em 0.
+    datas_invalidas = chamados["data_demanda"].isna().sum()
+    chamados = chamados[chamados["data_demanda"].notna()].copy()
     chamados["ano_mes"] = chamados["data_demanda"].dt.to_period("M").astype(str)
     chamados = chamados[(chamados["ano_mes"] >= PRIMEIRO_MES) & (chamados["ano_mes"] <= ULTIMO_MES)]
 
@@ -134,6 +138,7 @@ def carregar_chamados_lampada_apagada() -> pd.DataFrame:
 
     print(f"Chamados brutos (4 anos): {antes}")
     print(f"  duplicados exatos entre arquivos removidos: {duplicados_removidos}")
+    print(f"  datas que nao puderam ser lidas (DATA_DEMANDA invalida, descartadas): {datas_invalidas}")
     print(f"  'manutencao em lampada apagada' (os dois codigos) dentro do periodo {PRIMEIRO_MES} a {ULTIMO_MES}: {len(chamados) + descartados}")
     print(f"  descartados por bairro nao informado: {descartados}")
 
@@ -191,9 +196,9 @@ def aplicar_rotulo_e_split(painel: pd.DataFrame) -> pd.DataFrame:
     teve_chamado = painel["chamados_lampada_apagada"] > 0
     por_bairro = painel.groupby("bairro_norm")
 
-    # Rotulo principal (classificacao, usado no MQTT/dashboard: risco 0-1) e o
-    # valor bruto do mes seguinte como auxiliar, para quem quiser comparar com
-    # uma abordagem de regressao/ranking (ver decisao na secao 5 do notebook).
+    # Alvo principal: chamados_mes_seguinte (contagem, regressao/ranking). O
+    # binario teve_chamado_mes_seguinte fica so para comparacao no relatorio:
+    # ~95% das linhas sao positivas e ele nao discrimina nada (secao 5 do README).
     painel["teve_chamado_mes_seguinte"] = teve_chamado.groupby(painel["bairro_norm"]).shift(-1)
     painel["chamados_mes_seguinte"] = por_bairro["chamados_lampada_apagada"].shift(-1)
 
@@ -201,7 +206,11 @@ def aplicar_rotulo_e_split(painel: pd.DataFrame) -> pd.DataFrame:
     painel["teve_chamado_mes_seguinte"] = painel["teve_chamado_mes_seguinte"].astype(int)
     painel["chamados_mes_seguinte"] = painel["chamados_mes_seguinte"].astype(int)
 
-    painel["conjunto"] = painel["ano_mes"].map(lambda am: "treino" if am < "2025-01" else "teste")
+    # O split e pelo mes do ALVO, nao pelo mes da linha: a linha de 2024-12 preve
+    # 2025-01, que ja e periodo de teste. Separando pelo mes da linha, esse alvo
+    # vazava para o treino.
+    mes_do_alvo = (pd.PeriodIndex(painel["ano_mes"], freq="M") + 1).astype(str)
+    painel["conjunto"] = ["treino" if m < "2025-01" else "teste" for m in mes_do_alvo]
     return painel
 
 
@@ -234,12 +243,14 @@ def main() -> None:
     print("Proporcao de 'teve_chamado_mes_seguinte=1':")
     print(painel.groupby("conjunto")["teve_chamado_mes_seguinte"].mean().round(3))
     print()
-    print("Correlacao de cada feature de defasagem com o rotulo (treino):")
+    print("Correlacao de cada feature com os dois alvos (treino):")
     treino = painel[painel["conjunto"] == "treino"]
+    features = ["chamados_lampada_apagada", "chamados_lag1", "media_movel_3m", "total_postes"]
     print(
-        treino[["chamados_lampada_apagada", "chamados_lag1", "media_movel_3m", "teve_chamado_mes_seguinte"]]
-        .corr()["teve_chamado_mes_seguinte"]
-        .round(3)
+        pd.DataFrame({
+            "contagem (alvo principal)": treino[features].corrwith(treino["chamados_mes_seguinte"]),
+            "binario (so comparacao)": treino[features].corrwith(treino["teve_chamado_mes_seguinte"]),
+        }).round(3)
     )
     print()
     print(f"Salvo em {DADOS_PROCESSADOS / 'postes_por_bairro.csv'}")

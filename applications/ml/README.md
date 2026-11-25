@@ -116,8 +116,12 @@ vêm desse resumo) e grava em `data/processed/`:
 | `risco_bairro_mes.csv` | 1 linha por bairro × mês, com features de defasagem, rótulo e split | 4.136 |
 
 Essas duas saídas **são pequenas e podem ir para o Git** (não são os CSVs brutos da Emlurb). O
-painel começa em 2022-04 (não 2022-01): os 3 primeiros meses de cada bairro ficam sem histórico de
-3 meses pra trás e são descartados (seção 5).
+painel vai de **2022-04 a 2025-11**: os 3 primeiros meses de cada bairro ficam sem histórico de 3 meses
+pra trás, e 2025-12 sai porque não tem "mês seguinte" nos dados (o alvo dele seria 2026-01).
+
+O resumo impresso também mostra quantas datas `DATA_DEMANDA` não puderam ser lidas. **Esse número tem
+que ser 0**: o `pd.to_datetime(..., errors="coerce")` transforma em vazio, sem avisar, qualquer data num
+formato diferente do esperado, e esses chamados sumiriam da contagem.
 
 ### Colunas de `risco_bairro_mes.csv`
 | Coluna | Significado |
@@ -129,7 +133,7 @@ painel começa em 2022-04 (não 2022-01): os 3 primeiros meses de cada bairro fi
 | `total_postes`, `postes_sem_id`, `potencia_media_w`, `pct_led`, `rpa` | Features do cadastro de postes (seção 2) |
 | `teve_chamado_mes_seguinte` | Rótulo binário (1 se o bairro teve ≥ 1 chamado no mês seguinte) — **não é mais o alvo principal**, ver seção 5 |
 | `chamados_mes_seguinte` | **Alvo principal**: contagem de chamados do bairro no mês seguinte |
-| `conjunto` | `treino` (até 2024-12) ou `teste` (2025), separado por tempo, não aleatório |
+| `conjunto` | `treino` ou `teste`, separado **pelo mês do alvo** (não aleatório): treino = linhas de 2022-04 a 2024-11 (alvos até 2024-12, 3.008 linhas); teste = linhas de 2024-12 a 2025-11 (alvos em 2025, 1.128 linhas) |
 
 ---
 
@@ -156,6 +160,12 @@ bairro.** Contra a contagem, a mesma feature de histórico chega a 0,89. A class
 neste nível de agregação está estruturalmente quebrada pela prevalência de ~95%; a contagem
 preserva toda a informação.
 
+> **Correção de 25/11 no split:** antes, a linha de 2024-12 ficava no treino, mas o alvo dela é a
+> contagem de **2025-01**, que é período de teste (vazamento de 94 linhas). Agora o `preparar_dados.py`
+> separa pelo mês do alvo, e o CSV processado já foi atualizado. Os números da tabela acima e das
+> seções 4 e 5 do notebook foram calculados antes dessa correção (mudam pouco). **Rode o notebook de
+> novo** antes de usar esses números no relatório.
+
 **Decisão: o `treinar.py` prevê `chamados_mes_seguinte` (regressão), não `teve_chamado_mes_seguinte`
 (classificação).** A previsão vira "risco de 0 a 1" normalizando por percentil entre os bairros do
 mesmo mês — mantém o contrato já documentado no `MACHINE_LEARNING.md` (potência 90/80/70 por faixa
@@ -164,6 +174,33 @@ uma métrica de ranking e se encaixa na regressão de forma mais natural do que 
 binária original. O rótulo binário continua salvo na base, caso o relatório queira comparar as
 duas abordagens, mas não é mais o alvo principal. Números completos e o gráfico de comparação estão
 na seção 5 do [notebook de exploração](notebooks/01_exploracao.ipynb).
+
+---
+
+### O que o modelo precisa vencer (calculado em 25/11, conjunto de teste)
+
+Com o mês atual explicando 0,89 do mês seguinte, regras de uma linha já acertam muito. O modelo só vale a
+pena se **ganhar das duas primeiras linhas** (MAE menor **e** precisão no top 10% maior):
+
+| Regra simples | MAE | Precisão no top 10% |
+|---|---|---|
+| Persistência: "mês seguinte = mês atual" (`chamados_lampada_apagada`) | 9,21 | **0,81** |
+| `media_movel_3m` | **8,66** | 0,75 |
+| Só o tamanho do bairro (`total_postes`) | — | 0,66 |
+
+Teste: 12 meses (linhas de 2024-12 a 2025-11), 94 bairros, média de 32,7 chamados por bairro por mês.
+**Precisão no top 10%:** em cada mês, pegue os 9 bairros (10% de 94) com maior previsão e os 9 com maior
+contagem real no mês seguinte; a precisão é quantos estão nos dois grupos, dividido por 9. Depois, tire a
+média dos 12 meses.
+
+### Recomendação: risco por tamanho ou por taxa?
+
+Só o número de postes já acerta 66% do top 10%: em contagem absoluta, "bairro de risco" vira quase
+sinônimo de "bairro grande" (Boa Viagem sempre no topo). Para priorizar manutenção isso é útil (é onde
+está o volume de trabalho), mas não diz onde **cada poste** falha mais. Sugestão para o grupo decidir e
+explicar no relatório: treinar com a contagem (como decidido) e **mostrar os dois rankings**, o de
+contagem prevista e o de **taxa prevista por 1.000 postes** (`previsão / total_postes * 1000`), e
+escolher qual deles vira o risco de 0 a 1 publicado no MQTT.
 
 ---
 
@@ -200,4 +237,6 @@ se os dados mudarem. Principais achados (além do que já está nas seções aci
 - [ ] `src/publicar_risco.py` (chama a API e publica risco + comando no MQTT)
 - [ ] `dags/risco_dag.py` (Airflow: orquestra os três scripts acima)
 - [ ] `Dockerfile` + `docker-compose.yml` (Mosquitto + coletor + API + MLflow + Airflow)
-- [ ] `config.json` (mapear `P01`-`P03` para `id_ponto` reais do cadastro)
+- [ ] `config.json` (mapear o poste `P01` da maquete para um `id_ponto` e um bairro reais do cadastro;
+      os 3 mini postes da maquete estão no mesmo ESP32/GPIO18, então são **um** poste lógico)
+- [ ] Rodar o notebook de novo depois da correção do split (seção 5)
