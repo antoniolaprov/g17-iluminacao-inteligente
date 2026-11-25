@@ -18,8 +18,9 @@
    prontos e testados (seção 4). Parta deles.
 3. **Não quebre o contrato MQTT** (seção 7) nem a lógica de segurança do poste (seção 8). Pode
    acrescentar tópicos e campos novos; mudar os existentes quebra o ESP32 e o dashboard.
-4. **Trabalhe na branch `main`.** A branch `ml-dados-risco-bairro` está **desatualizada**: tudo o que havia
-   nela já está na `main`, que tem 5+ commits a mais. Não crie trabalho novo a partir dela.
+4. **Branches:** a `main` tem o projeto até a Fase 2 (central + ML). O trabalho novo, a partir de 25/11, vai
+   para a branch **`fase2-central-ml`** (pedido do representante), até o grupo decidir juntar na `main`.
+   A branch `ml-dados-risco-bairro` é antiga e fica guardada, mas não deve receber trabalho novo.
 5. **Antes de mexer, faça `git pull`.** Vários integrantes enviam commits.
 6. **Relatório CSBC:** o edital só permite IA para **revisão de texto**, com declaração de uso. **Não
    escreva o texto do relatório**; ajude a revisar, a conferir números e a explicar conceitos. Lembre a
@@ -95,8 +96,8 @@ luminária.
 
 | Parte | Situação | Onde |
 |---|---|---|
-| Firmware do poste (FreeRTOS + Wi-Fi + MQTT) | **Pronto e testado na placa** (v2.13 no repositório) | `esp32-esp8266/poste_g17/sketch.ino` |
-| Montagem física | **Pronta.** 1 ESP32 = poste `P01`, controlando **3 mini postes** ligados juntos no GPIO18. Falta decorar a maquete | `schematics/` |
+| Firmware do poste (FreeRTOS + Wi-Fi + MQTT) | **Pronto e testado na placa** (v2.14) | `esp32-esp8266/poste_g17/sketch.ino` |
+| Montagem física | **Pronta.** 1 ESP32 = poste `P01`, controlando **3 mini postes** ligados juntos no GPIO18. Falta decorar a maquete. **A maquete fica na faculdade**; em casa, simule o `P01` (`SIM_INCLUIR_P01=1`, ver `applications/README.md`) | `schematics/` |
 | Simulação no Wokwi | Pronta, testes registrados | `diagram.json`, `docs/testes_wokwi.md` |
 | Telemetria e comando via MQTT | **Funcionando com a placa real** (Wi-Fi da faculdade + HiveMQ público) | — |
 | Dashboard web em tempo real | **Pronto e testado com a placa**: estado, leituras, gráficos, comando de potência | `applications/dashboard/index.html` |
@@ -218,26 +219,26 @@ Por cima de tudo: **desgaste > 0,70** → `FALHA`, status vermelho e luminária 
 **Consequência para a central/ML:** um comando só consegue **subir** o brilho acima de 70% à noite; nunca
 apaga nem baixa do piso.
 
-| Parâmetro (placa física) | Valor no repositório (v2.13) |
+| Parâmetro (placa física) | Valor (v2.14) |
 |---|---|
 | Noite | escurece abaixo de **2500**, clareia acima de **2700** (histerese). Wokwi: 2000/2200 |
 | Pedestre | distância **< 5 cm** em **2 leituras seguidas** (ecos < 2 cm descartados) |
-| Tempo de presença | luz forte por **2 s** depois da última detecção |
+| Tempo de presença | luz forte por **0,5 s** depois da última detecção |
 | Correção gama do PWM | **4,0** na placa (70% ≈ 24% de PWM, para o salto até 100% ficar visível); 2,2 no Wokwi |
 | Piso CPTED | 70% |
 | Falha | desgaste > 0,70 |
 | Carência do fail-safe | 15 s |
 | Telemetria | a cada 5 s |
 
-**FreeRTOS:** tarefa `sensores` (prioridade 2, 60 ms), `controle` (3, 50 ms) e `comunicacao` (1, 20 ms),
+**FreeRTOS:** tarefa `sensores` (prioridade 2, 60 ms), `controle` (3, 20 ms) e `comunicacao` (1, 20 ms),
 com mutex no estado compartilhado e no Serial.
 
 **Modos de compilação:** `#define SIMULACAO 1` (Wokwi) ou `0` (placa); `#define USAR_REDE 1/0`. O
 `sketch.ino` do repositório fica **sempre** em `SIMULACAO 1` e sem senha. A versão da placa (com a senha
 do Wi-Fi) fica só no PC do Antônio (`Documentos/PlatformIO/Projects/poste_g17`) e **nunca** vai para o Git.
 
-> **Pendente de confirmação:** a v2.14 (presença 0,5 s, eco com timeout de 6 ms e controle a 20 ms, para
-> a luz reagir mais rápido) foi preparada, mas ainda não foi confirmada na placa nem enviada ao Git.
+> **v2.14 (25/11, aprovada na placa):** presença 0,5 s, timeout do eco de 6 ms (mede até ~1 m) e controle
+> a 20 ms, para a luz reagir mais rápido ao pedestre.
 
 ---
 
@@ -388,7 +389,6 @@ Ordem sugerida pelo risco para a nota. Entrega dos documentos em **03/12**; demo
 
 ## 13. Pendências a confirmar
 
-- Se a v2.14 do firmware (reação mais rápida da luz) fica (seção 8).
 - Como o **IPv6** será avaliado pelos professores (teste local basta?).
 - Se o uso de IA no código é aceito e como declarar.
 - Qual ranking vira o risco publicado: contagem ou taxa por 1.000 postes (seção 10.5).

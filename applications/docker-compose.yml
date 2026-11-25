@@ -77,6 +77,9 @@ services:
     <<: *app
     profiles: ["sim"]
     command: python simulador/simulador.py
+    environment:
+      <<: *app-env
+      SIM_INCLUIR_P01: ${SIM_INCLUIR_P01:-0}   # 1 = simula também o P01 (sem a maquete por perto)
     restart: unless-stopped
 
   treinar:

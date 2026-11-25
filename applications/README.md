@@ -37,6 +37,25 @@ docker compose run --rm publicar        # manda o risco e o comando de potência
 
 Para desligar: `docker compose --profile sim --profile airflow down`.
 
+## Trabalhando sem a maquete (de casa)
+
+A maquete (ESP32 = `P01`) fica na faculdade. Para testar tudo em casa, simule também o `P01`:
+
+```bash
+cd applications
+docker compose up -d --build
+SIM_INCLUIR_P01=1 docker compose --profile sim up -d    # P01..P10 simulados
+docker compose run --rm publicar                         # o P01 (Boa Viagem) recebe risco alto -> 90%
+```
+
+No PowerShell, troque a segunda linha por `$env:SIM_INCLUIR_P01=1; docker compose --profile sim up -d`.
+
+- O `P01` simulado tem o mesmo contrato e a mesma lógica do firmware, então o dashboard, o coletor e o
+  ML funcionam igual. **Não** ligue o `P01` simulado com a placa conectada no mesmo broker.
+- Para testar o **firmware** sem a placa, use o Wokwi (instruções no README principal). O Wokwi roda na
+  nuvem e só alcança brokers públicos (`broker.hivemq.com`), não o Mosquitto do seu PC.
+- Ligar o ESP32 no Mosquitto local (seção abaixo) só dá para fazer com a placa em mãos.
+
 ## Jeito 2: scripts direto no PC
 
 ```bash

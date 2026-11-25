@@ -13,8 +13,11 @@ numa maquete lê luz, presença e desgaste, controla a luminária por PWM e conv
 
 ## Branch e sincronização
 
-- Trabalhe na **`main`** e rode `git pull` antes de começar: vários integrantes enviam commits.
-- A branch `ml-dados-risco-bairro` está **desatualizada** (tudo dela já está na `main`). Não parta dela.
+- O trabalho novo vai na branch **`fase2-central-ml`** (a `main` tem o projeto até a Fase 2). Rode
+  `git pull` antes de começar: vários integrantes enviam commits.
+- A branch `ml-dados-risco-bairro` é antiga: fica guardada, mas não recebe trabalho novo.
+- A maquete física fica na faculdade. Sem ela, use o simulador com `SIM_INCLUIR_P01=1` (ver
+  `applications/README.md`).
 
 ## Mapa do repositório
 

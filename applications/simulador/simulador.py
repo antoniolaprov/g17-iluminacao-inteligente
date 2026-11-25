@@ -12,9 +12,14 @@ O dia é acelerado: um ciclo dia/noite inteiro dura SIM_CICLO_MIN minutos (padr�
 para a demonstração mostrar o anoitecer em poucos minutos. O poste P02 tem o desgaste
 acelerado e entra em FALHA em poucos minutos, para mostrar o alerta.
 
+Sem a maquete por perto (trabalhando de casa), SIM_INCLUIR_P01=1 simula também o P01, para o
+dashboard e o ML terem o poste da maquete. Não use com a placa ligada no mesmo broker: os dois
+publicariam como P01.
+
 Uso:
     python applications/simulador/simulador.py
-    (variáveis: MQTT_HOST, MQTT_PORT, SIM_POSTES (padrão 9 -> P02..P10), SIM_CICLO_MIN)
+    (variáveis: MQTT_HOST, MQTT_PORT, SIM_POSTES (padrão 9 -> P02..P10), SIM_CICLO_MIN,
+     SIM_INCLUIR_P01 (padrão 0))
 """
 
 import json
@@ -29,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from comum import MQTT_HOST, MQTT_PORT, novo_cliente, topico  # noqa: E402
 
 QTD_POSTES = int(os.getenv("SIM_POSTES", "9"))
+INCLUIR_P01 = os.getenv("SIM_INCLUIR_P01", "0") == "1"
 CICLO_S = float(os.getenv("SIM_CICLO_MIN", "6")) * 60
 INTERVALO_S = 5
 
@@ -135,7 +141,7 @@ class PosteVirtual:
 
 
 def main() -> None:
-    postes = [PosteVirtual(n) for n in range(2, 2 + QTD_POSTES)]
+    postes = ([PosteVirtual(1)] if INCLUIR_P01 else []) + [PosteVirtual(n) for n in range(2, 2 + QTD_POSTES)]
     print(f"Simulando {len(postes)} postes ({postes[0].id} a {postes[-1].id}) em {MQTT_HOST}:{MQTT_PORT}; "
           f"um dia simulado = {CICLO_S / 60:.0f} min", flush=True)
     for p in postes:
