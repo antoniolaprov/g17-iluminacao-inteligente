@@ -11,3 +11,9 @@ __pycache__/
 # Dados brutos da Emlurb (grandes, baixados do portal, não vão para o Git)
 applications/ml/data/raw/
 .ipynb_checkpoints/
+
+# MLflow local (tracking em sqlite + artefatos) e banco do coletor
+applications/ml/mlflow.db
+applications/ml/mlruns/
+mlruns/
+applications/backend/dados/

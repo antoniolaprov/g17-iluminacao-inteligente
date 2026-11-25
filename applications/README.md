@@ -1,19 +1,86 @@
-# Aplicações
+# Aplicações (a central)
 
-Lado "central" do sistema:
+Tudo o que roda no PC, do lado da "central da prefeitura". O formato das mensagens MQTT está no
+[README principal](../README.md#contrato-mqtt) e na seção 7 do [contexto](../docs/CONTEXTO_PARA_IA.md).
 
-- **Broker MQTT:** Mosquitto local — *ainda não existe neste repositório*. Hoje a demonstração usa o
-  broker público `broker.hivemq.com` (ver [README principal](../README.md#contrato-mqtt)).
-- **Coletor + banco de dados:** script Python guardando a telemetria em SQLite — *ainda não existe*.
-- **Dashboard:** página web em [`dashboard/`](dashboard/) (HTML + JavaScript + MQTT.js), com o estado
-  dos postes em tempo real e o envio de comandos. **Pronto e testado com a placa real.**
-- **Simulador:** script que publica a telemetria de postes virtuais `P02` em diante, no mesmo formato
-  do poste físico `P01` (a maquete tem 1 ESP32 controlando 3 mini postes juntos) — *ainda não existe*.
-- **`ml/`:** cruza o cadastro de postes e os chamados da Emlurb para treinar um modelo de risco de
-  falha por bairro, servido por API e MQTT, orquestrado por Airflow, rastreado no MLflow — tudo
-  requisito confirmado da disciplina, não bônus. Dados baixados, cruzados e EDA concluída; ver
-  [`ml/README.md`](ml/README.md) e o [plano completo](../MACHINE_LEARNING.md) na raiz.
+| Pasta / arquivo | O que é | Situação |
+|---|---|---|
+| [`broker/mosquitto.conf`](broker/mosquitto.conf) | Mosquitto local: 1883 (MQTT) e 9001 (WebSocket), IPv4 e IPv6 | Pronto, testado |
+| [`backend/coletor.py`](backend/coletor.py) | Assina telemetria, status e risco e grava em SQLite; alertas de FALHA/offline (Telegram opcional) | Pronto, testado |
+| [`simulador/simulador.py`](simulador/simulador.py) | Postes virtuais `P02`..`P10` no mesmo contrato do ESP32 | Pronto, testado |
+| [`dashboard/`](dashboard/) | Dashboard web em tempo real, com o risco do ML | Pronto, testado com a placa |
+| [`ml/`](ml/) | Dados da Emlurb, modelo de risco, MLflow, API e DAG do Airflow ([README](ml/README.md)) | Pronto, ver detalhes |
+| [`docker-compose.yml`](docker-compose.yml) + [`Dockerfile`](Dockerfile) + [`airflow/Dockerfile`](airflow/Dockerfile) | Sobe tudo em containers | Pronto, testado |
+| [`comum.py`](comum.py) | Configuração MQTT compartilhada (variáveis de ambiente) | — |
 
-O formato das mensagens MQTT está no [README principal](../README.md#contrato-mqtt). Tudo isso
-(Mosquitto, coletor, API, Airflow) vai rodar em containers Docker — ver seção 6 do
-[`MACHINE_LEARNING.md`](../MACHINE_LEARNING.md).
+---
+
+## Jeito 1: tudo no Docker (recomendado para a demonstração)
+
+Precisa do **Docker Desktop** ligado.
+
+```bash
+cd applications
+docker compose up -d --build            # Mosquitto, coletor, MLflow e API
+docker compose --profile sim up -d      # + postes simulados P02..P10
+docker compose run --rm publicar        # manda o risco e o comando de potência para os postes
+```
+
+| O quê | Onde |
+|---|---|
+| Dashboard | abra `dashboard/index.html`, vá em **Configuração do broker** e use `ws://localhost:9001` |
+| API de risco | http://localhost:8000/docs |
+| MLflow (experimentos e modelo registrado) | http://localhost:5000 |
+| Airflow (`docker compose --profile airflow up -d --build`, pesado: ~3 GB na primeira vez) | http://localhost:8080, usuário `admin`, senha: `docker compose exec airflow cat standalone_admin_password.txt`. O DAG é o `g17_risco_bairro`; os scripts rodam num venv próprio (`airflow/Dockerfile`), porque o Airflow traz numpy 1.x e o modelo usa numpy 2 |
+| Banco do coletor | `backend/dados/central.db` (fora do Git) |
+| Logs | `docker compose logs -f coletor` (troque pelo serviço) |
+
+Para desligar: `docker compose --profile sim --profile airflow down`.
+
+## Jeito 2: scripts direto no PC
+
+```bash
+python -m pip install -r applications/requirements-central.txt
+python applications/backend/coletor.py
+python applications/simulador/simulador.py
+python applications/ml/src/treinar.py
+uvicorn api:app --app-dir applications/ml/src --port 8000
+python applications/ml/src/publicar_risco.py
+```
+
+Todos leem o broker de `MQTT_HOST` / `MQTT_PORT` (padrão `localhost:1883`). Para usar o broker
+público de teste: `MQTT_HOST=broker.hivemq.com`.
+
+---
+
+## Ligar o poste físico (ESP32) no Mosquitto local
+
+No firmware, troque `MQTT_BROKER` (hoje `broker.hivemq.com`) pelo **IP do PC na rede** (veja com
+`ipconfig`, "Endereço IPv4" do Wi-Fi) e grave de novo. O PC e o ESP32 precisam estar na mesma rede
+(o roteador do celular resolve se a rede da faculdade isolar os aparelhos). No Windows, libere a
+porta 1883 no firewall na primeira vez que o Docker pedir.
+
+## IPv6
+
+O Mosquitto escuta em IPv4 **e IPv6** (o log mostra `Opening ipv6 listen socket on port 1883`). Teste
+que já foi feito: o coletor conectou e gravou os dados usando o endereço IPv6 de loopback:
+
+```bash
+MQTT_HOST=::1 python applications/backend/coletor.py
+# [MQTT] conectado a ::1:1883
+```
+
+A rede da faculdade não entrega IPv6 público (só `fe80::`, de enlace local). Na rede local, qualquer
+cliente pode usar o IPv6 do PC (`ipconfig`, "Endereço IPv6"); o ESP32 com a biblioteca atual
+(PubSubClient) só conecta por IPv4.
+
+## Alertas no Telegram (bônus)
+
+1. No Telegram, fale com o **@BotFather**, crie um bot e copie o token.
+2. Mande uma mensagem para o bot e abra `https://api.telegram.org/bot<TOKEN>/getUpdates` para ver o
+   `chat.id`.
+3. Crie `applications/.env` (fora do Git) com `TELEGRAM_TOKEN=...` e `TELEGRAM_CHAT_ID=...` e reinicie o
+   coletor (`docker compose up -d coletor`).
+
+O coletor avisa quando um poste entra em FALHA, fica offline ou para de mandar telemetria por 30 s.
+Sem o `.env`, os alertas aparecem só no log e na tabela `alertas` do banco.

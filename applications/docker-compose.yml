@@ -1,0 +1,123 @@
+# Central do Grupo 17 em containers.
+#
+#   cd applications
+#   docker compose up -d --build              # broker, coletor, MLflow e API (o essencial da demo)
+#   docker compose --profile sim up -d        # + simulador de postes P02..P10
+#   docker compose --profile airflow up -d --build   # + Airflow (pipeline de ML; ~3 GB na 1a vez)
+#   docker compose run --rm treinar           # treina o modelo uma vez, sem Airflow
+#   docker compose run --rm publicar          # publica risco + comando no MQTT uma vez
+#
+# Portas no PC: 1883 MQTT (ESP32 e scripts), 9001 MQTT/WebSocket (dashboard),
+# 5000 MLflow, 8000 API de risco (docs em /docs), 8080 Airflow.
+# Alertas no Telegram: crie applications/.env com TELEGRAM_TOKEN=... e TELEGRAM_CHAT_ID=...
+# (o .env está no .gitignore).
+
+name: g17-central
+
+x-app: &app
+  build: .
+  image: g17-central-app:1.0
+  volumes:
+    - ./:/app
+  environment: &app-env
+    MQTT_HOST: mosquitto
+    MQTT_PORT: "1883"
+    MLFLOW_TRACKING_URI: http://mlflow:5000
+    API_URL: http://api:8000
+    TZ: America/Recife
+  depends_on:
+    - mosquitto
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0.21
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./broker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    restart: unless-stopped
+
+  coletor:
+    <<: *app
+    command: python backend/coletor.py
+    environment:
+      <<: *app-env
+      DB_PATH: /app/backend/dados/central.db
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+    restart: unless-stopped
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.18.0
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+      --allowed-hosts "mlflow,mlflow:5000,localhost,localhost:5000,127.0.0.1,127.0.0.1:5000"
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_dados:/mlflow
+    restart: unless-stopped
+
+  api:
+    <<: *app
+    command: uvicorn api:app --app-dir ml/src --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/saude', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  simulador:
+    <<: *app
+    profiles: ["sim"]
+    command: python simulador/simulador.py
+    restart: unless-stopped
+
+  treinar:
+    <<: *app
+    profiles: ["manual"]
+    command: python ml/src/treinar.py
+    depends_on:
+      - mlflow
+
+  publicar:
+    <<: *app
+    profiles: ["manual"]
+    command: python ml/src/publicar_risco.py
+    depends_on:
+      - mosquitto
+      - api
+
+  airflow:
+    build:
+      context: .
+      dockerfile: airflow/Dockerfile
+    image: g17-airflow:1.0
+    profiles: ["airflow"]
+    command: standalone
+    ports:
+      - "8080:8080"
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/g17/ml/dags
+      G17_ML_DIR: /opt/airflow/g17/ml
+      MQTT_HOST: mosquitto
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      API_URL: http://api:8000
+      TZ: America/Recife
+    volumes:
+      - ./:/opt/airflow/g17
+    depends_on:
+      - mosquitto
+      - mlflow
+      - api
+    restart: unless-stopped
+
+volumes:
+  mlflow_dados:

@@ -1,0 +1,14 @@
+# Dependências da central (coletor, simulador, API e ML), usadas pela imagem Docker
+# e por quem roda os scripts direto no PC (python -m pip install -r applications/requirements-central.txt).
+#
+# Versões fixadas porque o modelo salvo (models/modelo_risco.joblib) só abre com a
+# mesma versão do scikit-learn que o treinou.
+pandas==2.2.3
+numpy==2.5.3
+scikit-learn==1.9.1
+joblib==1.6.0
+mlflow==3.18.0
+skops==0.16.0
+fastapi==0.162.5
+uvicorn==0.54.0
+paho-mqtt==2.2.0
