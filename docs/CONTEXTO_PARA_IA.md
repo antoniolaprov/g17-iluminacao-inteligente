@@ -102,7 +102,7 @@ luminária.
 | Telemetria e comando via MQTT | **Funcionando com a placa real** (Wi-Fi da faculdade + HiveMQ público) | — |
 | Dashboard web em tempo real | **Pronto e testado com a placa**: estado, leituras, gráficos, comando de potência | `applications/dashboard/index.html` |
 | Dados de ML (Emlurb) | **Baixados, limpos e cruzados por bairro** | `applications/ml/src/preparar_dados.py`, `data/processed/` |
-| EDA (notebook) | **Pronta**, com a decisão de alvo. Precisa ser executada de novo (seção 10.6) | `applications/ml/notebooks/01_exploracao.ipynb` |
+| EDA (notebook) | **Pronta**, com a decisão de alvo, executada com o split corrigido | `applications/ml/notebooks/01_exploracao.ipynb` |
 | Modelo de risco + MLflow | **Pronto e testado**: `poisson_glm` escolhido, vence a regra simples (seção 10.7) | `applications/ml/src/treinar.py`, `models/` |
 | API de inferência (FastAPI) | **Pronta e testada** (`/saude`, `/risco/{bairro}`, `/riscos`, `/poste/{id}`, `/prever`) | `applications/ml/src/api.py` |
 | Publicação do risco no MQTT | **Pronta e testada** (risco retido + comando de potência 90/80/70) | `applications/ml/src/publicar_risco.py`, `config.json` |
@@ -308,8 +308,7 @@ previsão de 2025-12 entre os bairros (`criterio_risco` no `config.json`: `conta
 
 ### 10.6 Correções feitas em 25/11 (revisão)
 - **Vazamento no split:** a linha de 2024-12 (alvo = 2025-01, período de teste) estava no treino. Corrigido
-  no script e no CSV processado. **O notebook precisa ser executado de novo**, porque as saídas das seções
-  4 e 5 foram geradas antes.
+  no script e no CSV processado, e o notebook de EDA foi executado de novo com a base corrigida.
 - O notebook e o plano diziam que 2022-2023 tinha chamados "quase em zero". Era de antes do filtro pelos
   dois códigos; a base tem 1.700 a 3.500 chamados por mês nesses anos.
 - O script agora informa quantas datas `DATA_DEMANDA` não puderam ser lidas (tem que dar 0).
@@ -321,7 +320,7 @@ previsão de 2025-12 entre os bairros (`criterio_risco` no `config.json`: `conta
 Ordem sugerida pelo risco para a nota. Entrega dos documentos em **03/12**; demo em **12/12**.
 
 > **Situação em 25/11 (noite):** A1-A4, B2-B8 e C1 foram implementados e testados (B3 = `notebooks/02_modelo.ipynb`). Falta testar o ESP32 no
-> Mosquitto local (A5), rodar o notebook de EDA de novo (B1), configurar o
+> Mosquitto local (A5, precisa da placa, que está na faculdade), configurar o
 > Telegram com um bot de verdade (D1) e toda a parte E. Como rodar: `applications/README.md`.
 
 ### A. Infraestrutura (Funcionamento, 20 pts)

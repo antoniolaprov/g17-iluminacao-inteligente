@@ -150,8 +150,8 @@ contra os dois alvos possíveis:
 
 | Feature | correlação com o binário | correlação com a contagem |
 |---|---|---|
-| `chamados_lampada_apagada` (mês atual) | 0,15 | **0,89** |
-| `media_movel_3m` | 0,14 | **0,88** |
+| `chamados_lampada_apagada` (mês atual) | 0,14 | **0,89** |
+| `media_movel_3m` | 0,14 | **0,87** |
 | `chamados_lag1` | 0,14 | **0,85** |
 | `total_postes` (estática) | 0,04 | **0,80** |
 
@@ -162,9 +162,8 @@ preserva toda a informação.
 
 > **Correção de 25/11 no split:** antes, a linha de 2024-12 ficava no treino, mas o alvo dela é a
 > contagem de **2025-01**, que é período de teste (vazamento de 94 linhas). Agora o `preparar_dados.py`
-> separa pelo mês do alvo, e o CSV processado já foi atualizado. Os números da tabela acima e das
-> seções 4 e 5 do notebook foram calculados antes dessa correção (mudam pouco). **Rode o notebook de
-> novo** antes de usar esses números no relatório.
+> separa pelo mês do alvo, e o CSV processado já foi atualizado. O notebook foi executado de novo com
+> a base corrigida, e a tabela acima já mostra os números atualizados.
 
 **Decisão: o `treinar.py` prevê `chamados_mes_seguinte` (regressão), não `teve_chamado_mes_seguinte`
 (classificação).** A previsão vira "risco de 0 a 1" normalizando por percentil entre os bairros do
@@ -282,9 +281,8 @@ Como rodar tudo: [`applications/README.md`](../README.md).
 - [x] `dags/risco_dag.py` (Airflow)
 - [x] `Dockerfile` + `docker-compose.yml` (em `applications/`)
 - [x] `config.json` (P01 = Boa Viagem; P02..P10 = bairros com riscos alto, médio e baixo)
-- [ ] Rodar o notebook de EDA de novo (as saídas são de antes da correção do split)
-- [ ] `notebooks/02_modelo.ipynb` com gráficos da comparação e da importância das variáveis, para o
-      relatório
+- [x] Notebook de EDA executado de novo com o split corrigido
+- [x] `notebooks/02_modelo.ipynb` com gráficos da comparação e dos coeficientes, para o relatório
 - [ ] Decidir qual ranking vira o risco publicado: contagem (padrão) ou taxa (`criterio_risco` no
       `config.json`)
 - [ ] Escolher um `id_ponto` real para o `P01` no `config.json` (precisa dos dados brutos)
