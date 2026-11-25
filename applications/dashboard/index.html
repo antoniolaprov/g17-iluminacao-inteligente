@@ -106,6 +106,8 @@
   th { color: var(--text-2); font-weight: 600; border-top: 0; }
   .table-wrap { overflow-x: auto; }
   .empty { color: var(--text-3); font-size: 14px; padding: 8px 0; }
+  .risco-ml { margin-top: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-2); }
+  .risco-ml strong { color: var(--text); }
   .lamp-glow { transition: opacity .25s; }
   .falha .lamp-glow { animation: pisca .7s steps(2) infinite; }
   @keyframes pisca { 50% { opacity: .15; } }
@@ -168,6 +170,7 @@
           <div class="estado-desc" id="estado-desc">Sem dados ainda</div>
           <div class="big" style="margin-top:10px"><span id="pct">—</span><small> % de brilho</small></div>
           <div class="meta" id="meta">—</div>
+          <div class="risco-ml" id="risco-ml" hidden></div>
         </div>
       </div>
     </section>
@@ -357,7 +360,7 @@ function conectar() {
   cliente.on('connect', () => {
     setBroker('ok');
     registrar('Conectado ao broker');
-    cliente.subscribe([`${cfg.prefix}/+/telemetria`, `${cfg.prefix}/+/status`]);
+    cliente.subscribe([`${cfg.prefix}/+/telemetria`, `${cfg.prefix}/+/status`, `${cfg.prefix}/+/risco`]);
   });
   cliente.on('reconnect', () => setBroker('conectando'));
   cliente.on('offline', () => setBroker('erro'));
@@ -386,6 +389,9 @@ function aoReceber(topico, payload) {
   if (tipo === 'status') {
     if (p.ultimo && p.status !== texto && situacao(p) !== 'online') registrar(`Poste ${id} ficou ${texto}`);
     p.status = texto;
+  } else if (tipo === 'risco') {
+    // Publicado (retido) pelo ML: applications/ml/src/publicar_risco.py
+    try { p.risco = JSON.parse(texto); } catch { return; }
   } else if (tipo === 'telemetria') {
     let d;
     try { d = JSON.parse(texto); } catch { return; }
@@ -453,6 +459,15 @@ function renderizarPostes() {
 function renderizar() {
   const p = postes[selecionado];
   $('sel-id').textContent = selecionado ? selecionado : '';
+  const caixaRisco = $('risco-ml');
+  caixaRisco.hidden = !(p && p.risco);
+  if (p && p.risco) {
+    const r = p.risco;
+    caixaRisco.innerHTML = `Risco previsto pelo ML: <strong></strong><br><span></span>`;
+    caixaRisco.querySelector('strong').textContent = `${String(r.classe).toUpperCase()} (${fmt(r.risco, 2)})`;
+    caixaRisco.querySelector('span').textContent =
+      `${r.bairro} · ${fmt(r.previsao_chamados, 0)} chamados previstos em ${r.mes_previsto}`;
+  }
   if (!p || !p.ultimo) return;
   const d = p.ultimo, sit = situacao(p);
   const e = ESTADOS[d.estado] || ESTADOS.INICIANDO;

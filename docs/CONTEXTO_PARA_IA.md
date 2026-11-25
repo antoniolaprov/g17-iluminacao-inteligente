@@ -5,7 +5,7 @@
 > funciona, como cada parte funciona, as regras que não podem ser quebradas e **tudo o que ainda falta
 > fazer, com critério de pronto**.
 >
-> **Atualizado em 25/11/2026.** Repositório: https://github.com/antoniolaprov/g17-iluminacao-inteligente
+> **Atualizado em 25/11/2026 (noite: central e ML implementados).** Repositório: https://github.com/antoniolaprov/g17-iluminacao-inteligente
 > (branch **`main`**). Se algo aqui contradisser o código, o código vale, e este arquivo deve ser corrigido.
 
 ---
@@ -102,9 +102,16 @@ luminária.
 | Dashboard web em tempo real | **Pronto e testado com a placa**: estado, leituras, gráficos, comando de potência | `applications/dashboard/index.html` |
 | Dados de ML (Emlurb) | **Baixados, limpos e cruzados por bairro** | `applications/ml/src/preparar_dados.py`, `data/processed/` |
 | EDA (notebook) | **Pronta**, com a decisão de alvo. Precisa ser executada de novo (seção 10.6) | `applications/ml/notebooks/01_exploracao.ipynb` |
-| Modelo, MLflow, API, Airflow, Docker | **Não existem ainda** | seção 11 |
-| Mosquitto local, coletor + SQLite, simulador | **Não existem ainda** | seção 11 |
-| IPv6, alerta Telegram/e-mail | **Não existem ainda** | seção 11 |
+| Modelo de risco + MLflow | **Pronto e testado**: `poisson_glm` escolhido, vence a regra simples (seção 10.7) | `applications/ml/src/treinar.py`, `models/` |
+| API de inferência (FastAPI) | **Pronta e testada** (`/saude`, `/risco/{bairro}`, `/riscos`, `/poste/{id}`, `/prever`) | `applications/ml/src/api.py` |
+| Publicação do risco no MQTT | **Pronta e testada** (risco retido + comando de potência 90/80/70) | `applications/ml/src/publicar_risco.py`, `config.json` |
+| DAG do Airflow | **Pronto e testado**: `g17_risco_bairro` rodou verde (`preparar_dados → treinar → publicar_risco`) | `applications/ml/dags/risco_dag.py`, `applications/airflow/Dockerfile` |
+| Mosquitto local (IPv4 + IPv6 + WebSocket) | **Pronto e testado** em Docker | `applications/broker/`, `docker-compose.yml` |
+| Coletor + SQLite + alertas (Telegram opcional) | **Pronto e testado** | `applications/backend/coletor.py` |
+| Simulador de postes P02..P10 | **Pronto e testado** | `applications/simulador/simulador.py` |
+| IPv6 | **Testado** no Mosquitto local (coletor conectado por `::1`) | `applications/README.md` |
+| Docker Compose (broker, coletor, MLflow, API, simulador, Airflow) | **Pronto e testado**: todos os serviços subiram; treino registrado no servidor MLflow | `applications/docker-compose.yml` |
+| Dashboard mostrando o risco do ML | **Pronto** | `applications/dashboard/` |
 | Relatório CSBC | **Não começado** (escrito pelo grupo) | `docs/` |
 
 ---
@@ -289,6 +296,15 @@ Só o número de postes já acerta 66% do top 10%: em contagem absoluta, "risco"
 bairro". Recomendação: mostrar também o ranking por **taxa prevista por 1.000 postes** e o grupo decidir
 qual vira o risco publicado.
 
+### 10.7 Modelo treinado (25/11)
+`treinar.py` compara `random_forest`, `gradient_boosting`, `hist_gb_poisson`, `poisson_glm` e as duas regras,
+com a escolha pela MAE de **validação** (alvos de 2024, dentro do treino), e mede o teste só para o
+relatório. Escolhido: **`poisson_glm`** (regressão de Poisson sobre `log1p` das features, padronizadas):
+MAE validação **8,30** (regra: 8,93), MAE teste **7,80** (meta: < 8,66), precisão no top 10% no teste
+**0,80** (a persistência faz 0,81, nenhum modelo passou). Tabela completa em
+`applications/ml/README.md` seção 7 e em `models/metadados.json`. O risco publicado é o percentil da
+previsão de 2025-12 entre os bairros (`criterio_risco` no `config.json`: `contagem` ou `taxa`).
+
 ### 10.6 Correções feitas em 25/11 (revisão)
 - **Vazamento no split:** a linha de 2024-12 (alvo = 2025-01, período de teste) estava no treino. Corrigido
   no script e no CSV processado. **O notebook precisa ser executado de novo**, porque as saídas das seções
@@ -302,6 +318,10 @@ qual vira o risco publicado.
 ## 11. O que falta fazer (tudo), com critério de pronto
 
 Ordem sugerida pelo risco para a nota. Entrega dos documentos em **03/12**; demo em **12/12**.
+
+> **Situação em 25/11 (noite):** A1-A4, B2-B8 e C1 foram implementados e testados (B3 = `notebooks/02_modelo.ipynb`). Falta testar o ESP32 no
+> Mosquitto local (A5), rodar o notebook de EDA de novo (B1), configurar o
+> Telegram com um bot de verdade (D1) e toda a parte E. Como rodar: `applications/README.md`.
 
 ### A. Infraestrutura (Funcionamento, 20 pts)
 | # | Tarefa | Pronto quando |

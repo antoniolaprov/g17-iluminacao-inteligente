@@ -4,7 +4,7 @@ Página web que acompanha os postes em tempo real e envia comandos, falando MQTT
 
 - **Tecnologias:** HTML, CSS e JavaScript, [MQTT.js](https://github.com/mqttjs/MQTT.js) e [Chart.js](https://www.chartjs.org/)
 - **Broker padrão:** HiveMQ público, `wss://broker.hivemq.com:8884/mqtt` (o mesmo `broker.hivemq.com:1883` que o ESP32 usa)
-- **Tópicos:** assina `g17/poste/+/telemetria` e `g17/poste/+/status`; publica em `g17/poste/<id>/comando`
+- **Tópicos:** assina `g17/poste/+/telemetria`, `g17/poste/+/status` e `g17/poste/+/risco`; publica em `g17/poste/<id>/comando`
 
 ## O que mostra
 
@@ -12,6 +12,7 @@ Página web que acompanha os postes em tempo real e envia comandos, falando MQTT
 |---|---|
 | Postes | Um botão por poste que já mandou telemetria (P01, e os do simulador no futuro), com a cor do estado |
 | Estado | Estado atual (DIA, DIMERIZADO, PEDESTRE, NOITE, FALHA, FAILSAFE), brilho da luminária e se o poste está online |
+| Risco do ML | Classe e valor do risco previsto para o bairro do poste, publicados pelo `applications/ml/src/publicar_risco.py` |
 | Leituras | Luz ambiente, pedestre e distância, desgaste da lâmpada, pedido da central, economia de energia na sessão e tempo ligado |
 | Gráficos | Brilho da luminária (%) e luz ambiente nos últimos 10 minutos |
 | Comando | Envia `{"potencia": N}` para o poste selecionado |

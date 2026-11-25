@@ -234,11 +234,13 @@ Para gravar na placa física, mude `#define SIMULACAO 1` para `0` e preencha o n
 - [x] Testes no simulador ([registro](docs/testes_wokwi.md))
 - [x] Montagem física (1 ESP32 = poste `P01`, com 3 mini postes no GPIO18; falta só decorar a maquete)
 - [x] Dashboard web recebendo telemetria e enviando comando (testado com a placa real)
-- [ ] IPv6
-- [ ] Central: Mosquitto local + SQLite (hoje ainda é só o broker público HiveMQ, sem persistência)
-- [ ] Simulador de postes virtuais
-- [ ] Modelo de risco por bairro (dados reais baixados, cruzados, com EDA e decisão de alvo
-      concluídas — falta treinar; ver [`MACHINE_LEARNING.md`](MACHINE_LEARNING.md))
+- [x] IPv6 no broker local (testado por `::1`; ver [`applications/README.md`](applications/README.md))
+- [x] Central: Mosquitto local + coletor em SQLite + alertas (Telegram opcional), em Docker
+- [x] Simulador de postes virtuais (`P02`..`P10`)
+- [x] Modelo de risco por bairro com MLflow, API, publicação no MQTT e DAG do Airflow
+      ([`applications/ml/README.md`](applications/ml/README.md))
+- [ ] ESP32 conectado ao Mosquitto local (hoje usa o HiveMQ público)
+- [ ] Relatório CSBC
 
 ---
 

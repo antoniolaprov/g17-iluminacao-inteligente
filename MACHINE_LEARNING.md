@@ -4,6 +4,13 @@ Guia para quem vai desenvolver a parte de machine learning do **Poste de Ilumina
 Leia junto com o [README](README.md), que explica o projeto, e com o [contexto completo](docs/CONTEXTO_PARA_IA.md),
 que tem todos os detalhes técnicos e pode ser entregue para uma IA de apoio.
 
+> **Implementado em 25/11 (noite):** `treinar.py` (comparação + MLflow + Model Registry), `api.py`
+> (FastAPI), `publicar_risco.py`, `config.json`, `dags/risco_dag.py` e o `docker-compose.yml` em
+> `applications/`. O modelo escolhido (`poisson_glm`) vence a regra simples na validação e tem MAE de
+> 7,80 no teste. Resultados e leitura honesta na seção 7 do
+> [`applications/ml/README.md`](applications/ml/README.md); como rodar em
+> [`applications/README.md`](applications/README.md).
+>
 > **Revisão de 25/11:** este plano foi conferido contra os dados processados e o código. Foram corrigidos
 > o vazamento no split treino/teste (seção 2.1), textos que diziam que 2022-2023 tinha chamados "quase em
 > zero" (não é verdade, seção 2.0), e foram acrescentadas as regras simples que o modelo precisa vencer,
