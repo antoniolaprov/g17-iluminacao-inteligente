@@ -7,8 +7,9 @@ numa maquete lê luz, presença e desgaste, controla a luminária por PWM e conv
 
 1. [`docs/CONTEXTO_PARA_IA.md`](docs/CONTEXTO_PARA_IA.md): **fonte única e completa** do projeto: o que
    existe, como funciona, regras e a lista de **tudo o que falta fazer, com critério de pronto** (seção 11).
-2. Se a tarefa for machine learning: [`MACHINE_LEARNING.md`](MACHINE_LEARNING.md) (plano) e
-   [`applications/ml/README.md`](applications/ml/README.md) (dados e decisões verificadas).
+2. Se a tarefa for machine learning: [`MACHINE_LEARNING.md`](MACHINE_LEARNING.md) (plano),
+   [`applications/ml/README.md`](applications/ml/README.md) (dados e decisões verificadas) e
+   [`docs/AUDITORIA_ML.md`](docs/AUDITORIA_ML.md) (auditoria contra a rubrica da disciplina, tasks pendentes e guia de explicabilidade).
 3. [`README.md`](README.md): visão geral para humanos.
 
 ## Branch e sincronização

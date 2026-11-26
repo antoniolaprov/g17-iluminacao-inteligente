@@ -319,9 +319,9 @@ previsão de 2025-12 entre os bairros (`criterio_risco` no `config.json`: `conta
 
 Ordem sugerida pelo risco para a nota. Entrega dos documentos em **03/12**; demo em **12/12**.
 
-> **Situação em 25/11 (noite):** A1-A4, B2-B8 e C1 foram implementados e testados (B3 = `notebooks/02_modelo.ipynb`). Falta testar o ESP32 no
-> Mosquitto local (A5, precisa da placa, que está na faculdade), configurar o
-> Telegram com um bot de verdade (D1) e toda a parte E. Como rodar: `applications/README.md`.
+> **Situação em 26/11:** A1-A4, B1-B8 e C1 foram implementados e testados em nível de MVP (`B3` = `notebooks/02_modelo.ipynb`).
+> Porém, uma auditoria contra a rubrica oficial (**Entregáveis CC – Machine Learning**) identificou gaps críticos em ML (tuning de hiperparâmetros, validação cruzada temporal/overfitting, gráficos de resíduos/R², baseline ML explícito e consumo de telemetria viva do embarcado) — veja a lista completa de tasks e critérios em [`docs/AUDITORIA_ML.md`](AUDITORIA_ML.md).
+> Também falta testar o ESP32 no Mosquitto local (A5, precisa da placa, que está na faculdade), configurar o Telegram com um bot de verdade (D1) e toda a parte E. Como rodar: `applications/README.md`.
 
 ### A. Infraestrutura (Funcionamento, 20 pts)
 | # | Tarefa | Pronto quando |
@@ -374,6 +374,7 @@ Ordem sugerida pelo risco para a nota. Entrega dos documentos em **03/12**; demo
 | `CLAUDE.md` | Lido automaticamente pelo Claude Code; aponta para este arquivo |
 | `MACHINE_LEARNING.md` | Plano detalhado de ML |
 | `docs/CONTEXTO_PARA_IA.md` | **Este arquivo** |
+| `docs/AUDITORIA_ML.md` | Auditoria dos entregáveis de ML vs. rubrica oficial, backlog de tasks (`ML-01`..`ML-12`) e guia de explicabilidade |
 | `docs/testes_wokwi.md` | Registro dos testes no simulador |
 | `esp32-esp8266/poste_g17/` | `sketch.ino`, `diagram.json` (Wokwi), `libraries.txt` |
 | `applications/dashboard/` | Dashboard web |

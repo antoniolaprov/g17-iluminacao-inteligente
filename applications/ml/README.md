@@ -286,3 +286,7 @@ Como rodar tudo: [`applications/README.md`](../README.md).
 - [ ] Decidir qual ranking vira o risco publicado: contagem (padrão) ou taxa (`criterio_risco` no
       `config.json`)
 - [ ] Escolher um `id_ponto` real para o `P01` no `config.json` (precisa dos dados brutos)
+- [ ] **Pendências da auditoria contra a rubrica oficial (ver [`docs/AUDITORIA_ML.md`](../../docs/AUDITORIA_ML.md)):**
+      `TimeSeriesSplit` + análise de overfitting (`ML-01`), otimização de hiperparâmetros no MLflow (`ML-02`),
+      baseline clássico + artefatos no MLflow (`ML-03`), gráficos de resíduos/Real×Previsto/R² (`ML-04`) e
+      consumo de dados vivos do embarcado no SQLite (`ML-05`).
