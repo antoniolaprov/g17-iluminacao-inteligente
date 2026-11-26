@@ -105,6 +105,23 @@ deixar a rua mais escura.
 | Carência do fail-safe | 15 s | Quedas rápidas da rede são ignoradas; quedas longas acionam a segurança |
 | Telemetria | a cada 5 s | Painel atualizado sem sobrecarregar a rede |
 
+### A cascata em Y (firmware v3.0)
+
+A maquete tem uma rua em formato de **Y**, com um poste na base e um em cada braço. O sensor **S1**
+fica na entrada da rua e o **S2** no braço esquerdo.
+
+| Momento | Base | Esquerdo | Direito |
+|---|---|---|---|
+| Pedestre passa no **S1** | 100% | **85%** | **85%** (os dois pré-acesos: o caminho ainda não é conhecido) |
+| Passa no **S2** em até 4 s (foi para a esquerda) | 70% | **100%** | 70% |
+| **Não** passa no S2 em 4 s (foi para a direita) | 70% | 70% | **100%** |
+| 2,5 s depois da confirmação | 70% | 70% | 70% |
+
+Se o **modelo de ML** responder (tópico `rota`), só o braço previsto acende, a 100%, antes de o pedestre
+chegar. Cada travessia completa vira um registro (tópico `travessia`) com o lado real, que é o dado de
+treino do modelo. As regras de segurança valem para cada poste: de dia apagado, piso de 70% à noite e
+100% no fail-safe.
+
 ### Exemplo de uma noite
 1. **18h, anoitece:** o LDR detecta pouca luz e o poste acende a 70% (`DIMERIZADO`).
 2. **Um pedestre passa:** o ultrassônico detecta e a luz vai a 100% (`PEDESTRE`).
@@ -137,6 +154,10 @@ Mesmo se a comunicação travar, o poste continua decidindo e iluminando.
 | `g17/poste/P01/telemetria` | poste → central | JSON a cada 5 s |
 | `g17/poste/P01/comando` | central → poste | `{"potencia": 0-100}` |
 | `g17/poste/P01/status` | poste → central | `online` / `offline` (mensagem retida + LWT) |
+| `g17/poste/P01/risco` | central (ML) → poste/dashboard | risco previsto para o bairro do poste (retido) |
+| `g17/poste/P01/evento` | poste → central (ML) | `{"tipo":"entrada","dist_s1":3.9,...}`: pedestre entrou pelo S1, pede a previsão do caminho |
+| `g17/poste/P01/rota` | central (ML) → poste | `{"direcao":"esquerda","confianca":0.82}`: braço previsto pelo modelo |
+| `g17/poste/P01/travessia` | poste → central | `{"dist_s1":3.9,"previsto":"...","fonte":"...","real":"direita","acertou":-1,"duracao_ms":4016,...}`: travessia completa, dado de treino do modelo de rota |
 
 Exemplo de telemetria:
 ```json
@@ -155,6 +176,9 @@ Exemplo de telemetria:
 | `estado` | Estado atual (ver tabela de estados) |
 | `pedido` | Última potência pedida pela central |
 | `uptime` | Segundos desde que o poste ligou |
+| `dist_s2`, `presenca_s2` | Distância e presença no S2 (braço esquerdo), desde a v3.0 |
+| `pct_base`, `pct_esq`, `pct_dir` | Brilho de cada um dos 3 postes, em % (`pct` = `pct_base`) |
+| `rota`, `rota_fonte` | Braço aceso pela cascata (`nenhuma`, `esquerda`, `direita`) e de onde veio (`aguardando`, `modelo`, `confirmada`) |
 
 O **LWT** (*Last Will and Testament*) faz o próprio broker publicar `offline` se o poste
 desligar ou perder a conexão sem avisar. Assim a central sabe na hora que um poste caiu.
@@ -167,12 +191,14 @@ desligar ou perder a conexão sem avisar. Assim a central sabe na hora que um po
 
 | GPIO | Componente |
 |---|---|
-| 18 | Luminária: mini poste LED 3 V. Fio vermelho via resistor de 100 Ω neste pino, fio branco no GND. Até 3 postes em paralelo, cada um com o seu resistor (no Wokwi: LED RGB com R, G e B juntos) |
+| 18 | Poste da **base** do Y (mini poste LED 3 V: fio vermelho via resistor de 100 Ω, fio branco no GND). No Wokwi: LED RGB com R, G e B juntos |
+| 22 | Poste do **braço esquerdo** (mesma ligação, resistor de 100 Ω). No Wokwi: LED branco |
+| 23 | Poste do **braço direito** (mesma ligação, resistor de 100 Ω). No Wokwi: LED branco |
 | 19 / 21 / 5 | LED RGB **de status** R / G / B (220 / 100 / 100 Ω) |
-| 26 / 27 | HC-SR04 TRIG / ECHO (na montagem, ECHO ligado direto, ver abaixo) |
+| 26 / 27 | **S1**, HC-SR04 da entrada da rua: TRIG / ECHO (na montagem, ECHO ligado direto, ver abaixo) |
+| 2 / 4 | **S2**, HC-SR04 do braço esquerdo: TRIG / ECHO. Em D25/D32 não respondeu; em D2/D4 funcionou (26/11) |
 | 34 | Sensor de luz de 2 pernas em divisor com 10 kΩ: `3V3 → sensor → GPIO34 → 10 kΩ → GND` (no Wokwi: módulo de 4 pinos, pino AO) |
 | 35 | Potenciômetro (simula desgaste) |
-| 2 | LED da placa (aceso = conectado à central) |
 
 O **HC-SR04 precisa de 5 V**: alimente-o pelo pino **VIN** (5 V vindos do USB), porque em 3,3 V ele não
 responde. Na montagem do grupo, o **ECHO está ligado direto no GPIO27**, por orientação do professor, e
