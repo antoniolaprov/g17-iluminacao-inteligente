@@ -15,7 +15,7 @@
 | **3. Modelo baseline + MLflow (params, métricas, artefatos)** | 🟡 **Revisar** | Há 2 baselines heurísticos (`regra_persistencia`, `regra_media_movel_3m`), mas falta um **baseline clássico de ML** (ex.: `LinearRegression` ou `DecisionTreeRegressor`), e as runs de comparação não logam artefatos no MLflow. |
 | **4. Comparação de ≥ 3 modelos + visualizações + análise crítica** | 🟡 **Revisar** | Há 4 modelos de ML (`poisson_glm`, `random_forest`, `gradient_boosting`, `hist_gb_poisson`), mas `02_modelo.ipynb` **não tem gráficos de resíduos**, **dispersão Real × Previsto por ponto** nem **R²**. |
 | **5. Otimização de hiperparâmetros (Grid/Random/Optuna) + MLflow** | ❌ **Faltando** | Todos os hiperparâmetros em `treinar.py` foram fixados manualmente (`alpha=1e-3`, `n_estimators=300` etc.). Não existe busca automatizada nem registro de tuning no MLflow. |
-| **6. Validação cruzada + estabilidade + overfitting/underfitting** | ❌ **Faltando** | Existe apenas 1 holdout temporal simples e **não são calculadas métricas no treino (`ajuste`)**. Sem `TimeSeriesSplit` (média ± desvio padrão) e sem comparar treino vs. validação vs. teste, não há evidência quantitativa de overfitting ou estabilidade. |
+| **6. Validação cruzada + estabilidade + overfitting/underfitting** | ✅ **Concluído (`ML-01`)** | `treinar.py` agora executa `TimeSeriesSplit(n_splits=5)` agrupado por `mes_do_alvo` (média ± desvio padrão) e mede erro no ajuste, validação e teste + $R^2$, comprovando overfitting das árvores e estabilidade do `poisson_glm`. |
 | **7. Integração consumindo dados novos do embarcado/simulador** | ❌ **Faltando** | O pipeline atual prevê apenas com dados históricos da Emlurb. Embora `coletor.py` salve a telemetria viva do ESP32/simulador no SQLite (`central.db`), **nenhum modelo consome esses dados novos para gerar inferências automaticamente**. |
 | **8. Docker Compose (1 comando) + Dashboard + Apresentação** | 🟡 **Revisar** | `docker-compose.yml` funciona, mas `simulador` e `airflow` exigem `--profile`. Dashboard já exibe o risco do ML via MQTT; falta decidir `contagem` vs. `taxa` e preencher `id_ponto`. |
 
@@ -25,13 +25,11 @@
 
 ### Prioridade Crítica (Exigido diretamente pela rubrica de ML)
 
-- [ ] **ML-01 · Validação cruzada temporal (`TimeSeriesSplit`) e análise de overfitting (`treinar.py`)**
-  - **Problema atual:** `applications/ml/src/treinar.py` usa apenas um corte fixo (`ajuste` = 2022-04..2023-11; `validacao` = 12 meses de 2024; `teste` = 12 meses de 2025) e **não mede o erro no conjunto de ajuste (treino)**.
-  - **O que fazer:**
-    1. Implementar validação cruzada temporal com `TimeSeriesSplit` (ou janela expansiva mensal) dentro do conjunto de treino (ex.: 4 ou 5 folds). *Nota: nunca usar K-Fold aleatório, pois vazaria futuro no passado.*
-    2. Calcular e logar **média e desvio padrão** entre folds (`cv_mae_mean`, `cv_mae_std`, `cv_rmse_mean`, `cv_r2_mean`) para comprovar **estabilidade**.
-    3. Medir e registrar métricas no **treino (`ajuste`)**, **validação** e **teste** (`ajuste_mae`, `val_mae`, `teste_mae`, `ajuste_r2`, `val_r2`, `teste_r2`) para evidenciar numericamente se os modelos de árvore estão sofrendo *overfitting*.
-  - **Pronto quando:** `treinar.py` imprimir e registrar no MLflow e em `models/metadados.json` as métricas de treino, validação cruzada (média ± desvio) e teste de todos os candidatos.
+- [x] **ML-01 · Validação cruzada temporal (`TimeSeriesSplit`) e análise de overfitting (`treinar.py`)** *(concluído em 26/11)*
+  - **O que foi feito:** implementado `avaliar_cv_temporal()` com `TimeSeriesSplit(n_splits=5)` agrupado por `mes_do_alvo` (evita vazar bairros do mesmo mês entre treino e validação), cálculo de $R^2$ em `medir()`, e registro de `ajuste_mae`/`ajuste_r2`, `val_mae`/`val_r2`, `gap_val_ajuste_mae`, `cv_*_mean`/`cv_*_std` e `teste_*` no MLflow e em `models/metadados.json`.
+  - **Evidência observada (execução de `treinar.py`):**
+    - `poisson_glm`: `ajuste_mae = 7.761`, `val_mae = 8.299` (gap `+0.538`), `cv_mae = 8.627 ± 1.278` (menor desvio entre todos), `val_r2 = 0.851`, `teste_mae = 7.804`, `teste_r2 = 0.903`.
+    - Árvores com claro *overfitting* no ajuste: `hist_gb_poisson` (`2.816` → `9.947`, gap `+7.131`), `gradient_boosting` (`5.439` → `10.043`, gap `+4.604`), `random_forest` (`4.941` → `9.249`, gap `+4.308`, `cv_std = 1.612`).
 
 - [ ] **ML-02 · Otimização de hiperparâmetros com registro no MLflow (`treinar.py`)**
   - **Problema atual:** parâmetros de todos os modelos estão fixos no código (`candidatos()` em `treinar.py`).

@@ -37,6 +37,8 @@ from sklearn.ensemble import (
     RandomForestRegressor,
 )
 from sklearn.linear_model import PoissonRegressor
+from sklearn.metrics import r2_score
+from sklearn.model_selection import TimeSeriesSplit
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
@@ -87,13 +89,36 @@ def precisao_top(df: pd.DataFrame, previsto: np.ndarray, por_taxa: bool = False,
 
 
 def medir(df: pd.DataFrame, previsto: np.ndarray, prefixo: str) -> dict:
-    erro = previsto - df[ALVO].to_numpy()
+    """Calcula MAE, RMSE, R2 e precisao no top 10% (contagem e taxa)."""
+    real = df[ALVO].to_numpy()
+    erro = previsto - real
     return {
         f"{prefixo}_mae": float(np.mean(np.abs(erro))),
         f"{prefixo}_rmse": float(np.sqrt(np.mean(erro ** 2))),
+        f"{prefixo}_r2": float(r2_score(real, previsto)),
         f"{prefixo}_precisao_top10": precisao_top(df, previsto),
         f"{prefixo}_precisao_top10_taxa": precisao_top(df, previsto, por_taxa=True),
     }
+
+
+def avaliar_cv_temporal(nome: str, treino: pd.DataFrame, n_splits: int = 5) -> dict:
+    """Executa TimeSeriesSplit agrupado por mes_do_alvo para medir estabilidade sem vazamento."""
+    meses = np.array(sorted(treino["mes_do_alvo"].unique()))
+    tscv = TimeSeriesSplit(n_splits=n_splits)
+    folds = []
+    for idx_tr, idx_va in tscv.split(meses):
+        tr = treino[treino["mes_do_alvo"].isin(meses[idx_tr])]
+        va = treino[treino["mes_do_alvo"].isin(meses[idx_va])]
+        modelo, _ = candidatos()[nome]
+        modelo.fit(tr[FEATURES], tr[ALVO])
+        folds.append(medir(va, modelo.predict(va[FEATURES]), "cv"))
+
+    resumo = {}
+    for metrica in ("cv_mae", "cv_rmse", "cv_r2", "cv_precisao_top10"):
+        valores = [f[metrica] for f in folds]
+        resumo[f"{metrica}_mean"] = float(np.mean(valores))
+        resumo[f"{metrica}_std"] = float(np.std(valores, ddof=1))
+    return resumo
 
 
 # ---------------- candidatos ----------------
@@ -176,12 +201,16 @@ def main() -> None:
           f"| teste: {len(teste)} (alvos {teste['mes_do_alvo'].min()} a {teste['mes_do_alvo'].max()})")
 
     preparar_mlflow()
+    n_splits_cv = 5
     resultados = {}
     for nome, (modelo, params) in candidatos().items():
         with mlflow.start_run(run_name=nome) as run:
-            mlflow.log_params({"modelo": nome, "features": ",".join(FEATURES), **params})
+            mlflow.log_params({"modelo": nome, "features": ",".join(FEATURES), "cv_splits": n_splits_cv, **params})
+            metricas = avaliar_cv_temporal(nome, treino, n_splits=n_splits_cv)
             modelo.fit(ajuste[FEATURES], ajuste[ALVO])
-            metricas = medir(validacao, modelo.predict(validacao[FEATURES]), "val")
+            metricas.update(medir(ajuste, modelo.predict(ajuste[FEATURES]), "ajuste"))
+            metricas.update(medir(validacao, modelo.predict(validacao[FEATURES]), "val"))
+            metricas["gap_val_ajuste_mae"] = metricas["val_mae"] - metricas["ajuste_mae"]
             modelo.fit(treino[FEATURES], treino[ALVO])
             metricas.update(medir(teste, modelo.predict(teste[FEATURES]), "teste"))
             mlflow.log_metrics(metricas)
@@ -189,8 +218,13 @@ def main() -> None:
             resultados[nome] = {**metricas, "run_id": run.info.run_id}
 
     tabela = pd.DataFrame(resultados).T.drop(columns="run_id").astype(float)
+    colunas_resumo = [
+        "ajuste_mae", "val_mae", "gap_val_ajuste_mae",
+        "cv_mae_mean", "cv_mae_std", "val_r2",
+        "teste_mae", "teste_rmse", "teste_r2", "teste_precisao_top10",
+    ]
     print("\nComparacao (escolha pela MAE de validacao; teste so para o relatorio):")
-    print(tabela.sort_values("val_mae").round(3).to_string())
+    print(tabela[colunas_resumo].sort_values("val_mae").round(3).to_string())
 
     modelos_treinaveis = [n for n in resultados if not n.startswith("regra_")]
     escolhido = min(modelos_treinaveis, key=lambda n: resultados[n]["val_mae"])
@@ -224,6 +258,7 @@ def main() -> None:
         "parametros": params,
         "features": FEATURES,
         "alvo": ALVO,
+        "cv_estrategia": f"TimeSeriesSplit(n_splits={n_splits_cv}) por mes_do_alvo no conjunto de treino",
         "mes_previsto": str(risco["mes_previsto"].iloc[0]),
         "vence_regra_simples_na_validacao": bool(venceu),
         "metricas": {n: {k: round(v, 4) for k, v in r.items() if k != "run_id"} for n, r in resultados.items()},
