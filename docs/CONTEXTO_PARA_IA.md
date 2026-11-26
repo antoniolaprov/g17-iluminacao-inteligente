@@ -96,8 +96,8 @@ luminária.
 
 | Parte | Situação | Onde |
 |---|---|---|
-| Firmware do poste (FreeRTOS + Wi-Fi + MQTT) | **Pronto e testado na placa** (v2.14) | `esp32-esp8266/poste_g17/sketch.ino` |
-| Montagem física | **Pronta.** 1 ESP32 = poste `P01`, controlando **3 mini postes** ligados juntos no GPIO18. Falta decorar a maquete. **A maquete fica na faculdade**; em casa, simule o `P01` (`SIM_INCLUIR_P01=1`, ver `applications/README.md`) | `schematics/` |
+| Firmware do poste (FreeRTOS + Wi-Fi + MQTT) | **v3.0, cascata em Y, testado na placa em 26/11** (3 postes em pinos separados + 2 ultrassônicos) | `esp32-esp8266/poste_g17/sketch.ino` |
+| Montagem física | **Pronta (cascata em Y, 26/11).** 1 ESP32 = poste `P01`, com **3 mini postes em pinos separados** (base D18, braço esquerdo D22, braço direito D23) e **2 ultrassônicos** (S1 na entrada, S2 no braço esquerdo). Falta decorar a maquete. **A maquete fica na faculdade**; em casa, simule o `P01` (`SIM_INCLUIR_P01=1`, ver `applications/README.md`) | `schematics/` |
 | Simulação no Wokwi | Pronta, testes registrados | `diagram.json`, `docs/testes_wokwi.md` |
 | Telemetria e comando via MQTT | **Funcionando com a placa real** (Wi-Fi da faculdade + HiveMQ público) | — |
 | Dashboard web em tempo real | **Pronto e testado com a placa**: estado, leituras, gráficos, comando de potência | `applications/dashboard/index.html` |
@@ -151,13 +151,16 @@ framework `arduino`, `monitor_speed = 115200`, `lib_deps = knolleary/PubSubClien
 
 | GPIO | Componente | Ligação |
 |---|---|---|
-| **18** | Luminária (PWM): **3 mini postes LED 3 V** | Cada poste: **fio vermelho → resistor 100 Ω → GPIO18**; fio branco/preto → GND. Os 3 resistores saem da mesma fileira do GPIO18 (um resistor por poste). Mais de 3 postes exige transistor NPN no VIN |
+| **18** | Poste da **base** do Y (PWM) | mini poste LED 3 V: **fio vermelho → resistor 100 Ω → GPIO18**; fio branco/preto → GND |
+| **22** | Poste do **braço esquerdo** (PWM) | mesma ligação, no GPIO22 |
+| **23** | Poste do **braço direito** (PWM) | mesma ligação, no GPIO23 |
 | **19 / 21 / 5** | LED RGB de status (R / G / B) | via 220 / 100 / 100 Ω; perna comum (a mais comprida) no GND |
-| **26** | HC-SR04 TRIG | direto |
-| **27** | HC-SR04 ECHO | **direto** (orientação do professor, sem divisor). Sensor alimentado no **VIN (5 V)**, porque em 3,3 V não responde |
+| **26** | **S1** (entrada da rua) TRIG | direto |
+| **27** | **S1** ECHO | **direto** (orientação do professor, sem divisor). Sensores alimentados no **VIN (5 V)**, porque em 3,3 V não respondem |
+| **2** | **S2** (braço esquerdo) TRIG | direto. Em D25/D32 o S2 não respondeu; em D2/D4 funcionou (26/11). O D2 também acende o LED azul da placa, que por isso deixou de indicar a conexão |
+| **4** | **S2** ECHO | direto, VCC no VIN |
 | **34** | Sensor de luz (LDR de 2 pernas) | divisor: **3V3 → LDR → GPIO34 → 10 kΩ → GND**. Mais luz = número maior |
 | **35** | Potenciômetro (desgaste) | pontas em 3V3 e GND, pino do meio no GPIO35 |
-| **2** | LED azul da placa | aceso = conectado à central |
 
 **Regras e lições da montagem:**
 - Todos os GND ligados juntos (linha azul da protoboard). Entradas analógicas só no **ADC1 (GPIO 32 a
@@ -197,8 +200,21 @@ framework `arduino`, `monitor_speed = 115200`, `lib_deps = knolleary/PubSubClien
 o poste cair. Quando a placa reinicia, o `offline` da conexão antiga pode chegar **depois** do `online`
 novo; por isso o dashboard considera online quem mandou telemetria nos últimos 15 s.
 
-**Proposto para o ML (ainda não implementado):** `g17/poste/<ID>/risco`, retido, por exemplo
-`{"risco":0.82,"classe":"alto","bairro":"BOA VIAGEM","modelo":"rf-v1"}`.
+**Campos da cascata (v3.0), no fim da telemetria:** `dist_s2`, `presenca_s2`, `pct_base`, `pct_esq`,
+`pct_dir`, `rota` (`nenhuma`/`esquerda`/`direita`) e `rota_fonte` (`aguardando`/`modelo`/`confirmada`).
+`pct` continua igual a `pct_base` e `dist`/`presenca` continuam sendo do S1. Postes do simulador não mandam
+esses campos.
+
+**Risco do ML (implementado):** `g17/poste/<ID>/risco`, retido, por exemplo
+`{"risco":0.82,"classe":"alto","bairro":"BOA VIAGEM","modelo":"poisson_glm"}`.
+
+**Cascata em Y (v3.0):**
+
+| Tópico | Direção | Conteúdo |
+|---|---|---|
+| `g17/poste/P01/evento` | poste → ML | `{"id":"P01","tipo":"entrada","dist_s1":3.9,"uptime":58}`: pedestre entrou pelo S1, pede a previsão |
+| `g17/poste/P01/rota` | ML → poste | `{"direcao":"esquerda","confianca":0.82}`: o firmware usa se `confianca` ≥ 0,5 e a travessia ainda não foi confirmada |
+| `g17/poste/P01/travessia` | poste → central | `{"id":"P01","dist_s1":3.9,"previsto":"nenhuma","fonte":"sem_previsao","real":"direita","acertou":-1,"duracao_ms":4016,"uptime":62}`: travessia completa; `real` vem do S2 (disparou = esquerda; não disparou em 4 s = direita). O coletor grava na tabela `travessia` |
 
 **Brokers:** hoje `broker.hivemq.com:1883` (ESP32) e `wss://broker.hivemq.com:8884/mqtt` (dashboard).
 Na entrega: **Mosquitto local**, com listener 1883 (ESP32) e WebSocket 9001 (dashboard). Deixe o endereço
@@ -216,13 +232,22 @@ Prioridade a cada ciclo de controle:
 
 Por cima de tudo: **desgaste > 0,70** → `FALHA`, status vermelho e luminária cintilando.
 
+Essas regras valem **para cada um dos 3 postes**. Na v3.0, o item 3 virou a **cascata em Y**:
+- pedestre no **S1** → base 100% e os dois braços **pré-acesos a 85%** (`rota_fonte=aguardando`);
+- se o modelo responder pelo tópico `rota` → só o braço previsto a 100% (`rota_fonte=modelo`);
+- **S2** dispara em até **4 s** → braço esquerdo 100%; senão → braço direito 100% (`rota_fonte=confirmada`);
+- o braço confirmado fica a 100% por **2,5 s**; depois tudo volta ao piso;
+- S2 sozinho (alguém vindo pelo braço esquerdo) → braço esquerdo 100%;
+- uma entrada nova no S1 começa outra travessia, mesmo com o braço anterior ainda aceso;
+- travessias são registradas também de dia (com as luzes apagadas), para facilitar a coleta de dados.
+
 **Consequência para a central/ML:** um comando só consegue **subir** o brilho acima de 70% à noite; nunca
 apaga nem baixa do piso.
 
-| Parâmetro (placa física) | Valor (v2.14) |
+| Parâmetro (placa física) | Valor (v3.0) |
 |---|---|
 | Noite | escurece abaixo de **2500**, clareia acima de **2700** (histerese). Wokwi: 2000/2200 |
-| Pedestre | distância **< 5 cm** em **2 leituras seguidas** (ecos < 2 cm descartados) |
+| Pedestre | distância **< 10 cm** (S1 e S2) em **2 leituras seguidas** (ecos < 2 cm descartados). O limite tem que ser menor que a distância até o outro lado da rua da maquete. Os sensores disparam um de cada vez, para um não ouvir o eco do outro |
 | Tempo de presença | luz forte por **0,5 s** depois da última detecção |
 | Correção gama do PWM | **4,0** na placa (70% ≈ 24% de PWM, para o salto até 100% ficar visível); 2,2 no Wokwi |
 | Piso CPTED | 70% |
@@ -233,7 +258,8 @@ apaga nem baixa do piso.
 **FreeRTOS:** tarefa `sensores` (prioridade 2, 60 ms), `controle` (3, 20 ms) e `comunicacao` (1, 20 ms),
 com mutex no estado compartilhado e no Serial.
 
-**Modos de compilação:** `#define SIMULACAO 1` (Wokwi) ou `0` (placa); `#define USAR_REDE 1/0`. O
+**Modos de compilação:** `#define SIMULACAO 1` (Wokwi) ou `0` (placa); `#define USAR_REDE 1/0`;
+`#define USAR_S2 1/0` (sem o S2, o sistema pré-acende e espera, mas não confirma o caminho). O
 `sketch.ino` do repositório fica **sempre** em `SIMULACAO 1` e sem senha. A versão da placa (com a senha
 do Wi-Fi) fica só no PC do Antônio (`Documentos/PlatformIO/Projects/poste_g17`) e **nunca** vai para o Git.
 
@@ -317,6 +343,18 @@ Ordem sugerida pelo risco para a nota. Entrega dos documentos em **03/12**; demo
 > **Situação em 26/11:** A1-A4, B1-B8 e C1 foram implementados e testados em nível de MVP (`B3` = `notebooks/02_modelo.ipynb`).
 > Porém, uma auditoria contra a rubrica oficial (**Entregáveis CC – Machine Learning**) identificou gaps críticos em ML (tuning de hiperparâmetros, validação cruzada temporal/overfitting, gráficos de resíduos/R², baseline ML explícito e consumo de telemetria viva do embarcado) — veja a lista completa de tasks e critérios em [`docs/AUDITORIA_ML.md`](AUDITORIA_ML.md).
 > Também falta testar o ESP32 no Mosquitto local (A5, precisa da placa, que está na faculdade), configurar o Telegram com um bot de verdade (D1) e toda a parte E. Como rodar: `applications/README.md`.
+
+### F. Cascata em Y (firmware v3.0, a partir de 26/11)
+
+| # | Tarefa | Pronto quando |
+|---|---|---|
+| F1 | Hardware: 3 postes em pinos separados + S2 | ✅ Feito e testado na placa (26/11) |
+| F2 | Firmware v3.0 com a cascata por regra (pré-acende os dois braços, S2 confirma) | ✅ Feito e testado na placa (26/11) |
+| F3 | Coletor gravando os campos novos e as tabelas `travessia` e `evento` | ✅ Feito e testado |
+| F4 | Coletar pelo menos 20 min de travessias com a maquete (passando o boneco de um jeito consistente por lado da rua, para o modelo ter um sinal) | ~100+ linhas na tabela `travessia` |
+| F5 | `applications/ml/src/prever_rota.py`: classificador (regressão logística ou árvore rasa) com `dist_s1` e o que mais houver, experimento `rota_pedestre` no MLflow; serviço que assina `.../evento` e publica `.../rota` | O firmware mostra `rota_fonte=modelo` e acende só o braço previsto |
+| F6 | API: `GET /rota/...` com a previsão e a taxa de acerto | Rota respondendo |
+| F7 | Dashboard mostrando os 3 postes, a rota prevista e as travessias | Visível na demo |
 
 ### A. Infraestrutura (Funcionamento, 20 pts)
 | # | Tarefa | Pronto quando |
