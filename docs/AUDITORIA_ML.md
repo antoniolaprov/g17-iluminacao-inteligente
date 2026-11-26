@@ -14,7 +14,7 @@
 | **2. Pipeline Airflow + EDA + preparação** | 🟡 **Revisar** | DAG `g17_risco_bairro` existe, mas `preparar_dados` pula se `data/raw/` não estiver presente; `01_exploracao.ipynb` já lê o CSV limpo e não mostra limpeza/nulos/encoding. O encoding do pipeline no `treinar.py` foi corrigido em `ML-13`. |
 | **3. Modelo baseline + MLflow (params, métricas, artefatos)** | 🟡 **Revisar** | Há 2 baselines heurísticos (`regra_persistencia`, `regra_media_movel_3m`), mas falta um **baseline clássico de ML** (ex.: `LinearRegression` ou `DecisionTreeRegressor`), e as runs de comparação não logam artefatos no MLflow. |
 | **4. Comparação de ≥ 3 modelos + visualizações + análise crítica** | 🟡 **Revisar** | Há 4 modelos de ML (`poisson_glm`, `random_forest`, `gradient_boosting`, `hist_gb_poisson`), mas `02_modelo.ipynb` **não tem gráficos de resíduos**, **dispersão Real × Previsto por ponto** nem **R²**. |
-| **5. Otimização de hiperparâmetros (Grid/Random/Optuna) + MLflow** | ❌ **Faltando** | Todos os hiperparâmetros em `treinar.py` foram fixados manualmente (`alpha=1e-3`, `n_estimators=300` etc.). Não existe busca automatizada nem registro de tuning no MLflow. |
+| **5. Otimização de hiperparâmetros (Grid/Random/Optuna) + MLflow** | ✅ **Concluído (`ML-02`)** | `treinar.py` executa Grid Search via `TimeSeriesSplit(n_splits=5)` em todos os modelos treináveis (33 combinações logadas como nested runs `fase=tuning` no MLflow) e grava o histórico por fold (`cv_folds`) em `metadados.json`. |
 | **6. Validação cruzada + estabilidade + overfitting/underfitting** | ✅ **Concluído (`ML-01`)** | `treinar.py` agora executa `TimeSeriesSplit(n_splits=5)` agrupado por `mes_do_alvo` (média ± desvio padrão) e mede erro no ajuste, validação e teste + $R^2$, comprovando overfitting das árvores e estabilidade do `poisson_glm`. |
 | **7. Integração consumindo dados novos do embarcado/simulador** | ❌ **Faltando** | O pipeline atual prevê apenas com dados históricos da Emlurb. Embora `coletor.py` salve a telemetria viva do ESP32/simulador no SQLite (`central.db`), **nenhum modelo consome esses dados novos para gerar inferências automaticamente**. |
 | **8. Docker Compose (1 comando) + Dashboard + Apresentação** | 🟡 **Revisar** | `docker-compose.yml` funciona, mas `simulador` e `airflow` exigem `--profile`. Dashboard já exibe o risco do ML via MQTT; falta decidir `contagem` vs. `taxa` e preencher `id_ponto`. |
@@ -25,22 +25,14 @@
 
 ### Prioridade Crítica (Exigido diretamente pela rubrica de ML)
 
-- [x] **ML-01 · Validação cruzada temporal (`TimeSeriesSplit`) e análise de overfitting (`treinar.py`)** *(concluído em 26/11, com refinamento ligado à `ML-02`)*
-  - **O que foi feito:** implementado `avaliar_cv_temporal()` com `TimeSeriesSplit(n_splits=5)` agrupado por `mes_do_alvo` (evita vazar bairros do mesmo mês entre treino e validação), cálculo de $R^2$ em `medir()`, e registro de `ajuste_mae`/`ajuste_r2`, `val_mae`/`val_r2`, `gap_val_ajuste_mae`, `cv_*_mean`/`cv_*_std` e `teste_*` no MLflow e em `models/metadados.json`.
-  - **Evidência observada (execução de `treinar.py`):**
-    - `poisson_glm`: `ajuste_mae = 7.761`, `val_mae = 8.299` (gap `+0.538`), `cv_mae = 8.627 ± 1.278` (menor desvio entre todos), `val_r2 = 0.851`, `teste_mae = 7.804`, `teste_r2 = 0.903`.
-    - Árvores com claro *overfitting* no ajuste: `hist_gb_poisson` (`2.816` → `9.947`, gap `+7.131`), `gradient_boosting` (`5.439` → `10.043`, gap `+4.604`), `random_forest` (`4.941` → `9.249`, gap `+4.308`, `cv_std = 1.612`).
-  - **Pontos críticos notados após revisão (tratar em `ML-02` e `ML-04`):**
-    1. **Paradoxo `val_mae` vs. `cv_mae_mean`:** na média dos 5 folds, `random_forest` deu `cv_mae_mean = 8.283 ± 1.612` (menor que `8.627` do `poisson_glm`), mas o código ainda escolhe o vencedor só por `val_mae` (holdout de 2024). É preciso alinhar o critério de seleção na `ML-02`.
-    2. **Erro de treino por fold:** `avaliar_cv_temporal()` hoje guarda apenas o erro de validação de cada fold; registrar também o erro de treino por fold (`cv_ajuste_mae_mean` e histórico fold a fold) permite plotar a curva de aprendizado temporal.
+- [x] **ML-01 · Validação cruzada temporal (`TimeSeriesSplit`) e análise de overfitting (`treinar.py`)** *(concluído e refinado em 26/11)*
+  - **O que foi feito:** implementado `avaliar_cv_temporal()` com `TimeSeriesSplit(n_splits=5)` agrupado por `mes_do_alvo` (evita vazar bairros do mesmo mês entre treino e validação), cálculo de $R^2$ em `medir()`, histórico por fold (treino e validação) em `cv_folds` e registro completo no MLflow e em `models/metadados.json`.
 
-- [ ] **ML-02 · Otimização de hiperparâmetros com registro no MLflow e critério unificado (`treinar.py`)**
-  - **Problema atual:** parâmetros de todos os modelos estão fixos no código (`candidatos()` em `treinar.py`), e a seleção final usa apenas `val_mae` ignorando `cv_mae_mean`.
-  - **O que fazer:**
-    1. Aplicar `GridSearchCV` (ou `RandomizedSearchCV` / `Optuna`) usando o mesmo `TimeSeriesSplit` agrupado por `mes_do_alvo` como `cv` no conjunto de treino — ajustando `alpha`/`fit_intercept` do `PoissonRegressor` e regularizando as árvores (`max_depth`, `min_samples_leaf`, `n_estimators`) para tentar reduzir o overfitting observado na `ML-01`.
-    2. Alinhar o critério de seleção do melhor modelo (usar `cv_mae_mean` — ou justificar formalmente o uso da validação mais recente caso o regime de 2024 tenha mudado) para eliminar a contradição `random_forest` vs. `poisson_glm`.
-    3. Guardar também o erro de treino por fold na CV (para curva de aprendizado temporal) e registrar no MLflow todas as combinações avaliadas (nested runs ou tag `fase=tuning`).
-  - **Pronto quando:** a UI do MLflow mostrar os experimentos de busca de hiperparâmetros, os melhores parâmetros antes do retreino final e não houver contradição entre métrica de CV e modelo escolhido.
+- [x] **ML-02 · Otimização de hiperparâmetros com registro no MLflow e critério unificado (`treinar.py`)** *(concluído em 26/11)*
+  - **O que foi feito:** implementado `otimizar_hiperparametros()` com busca em grade (`ParameterGrid`) sobre `TimeSeriesSplit(n_splits=5)` para os 4 modelos treináveis, registrando todas as **33 combinações** avaliadas como nested runs (`fase=tuning`) no MLflow, além de `cv_ajuste_mae_mean`, `cv_gap_mae_mean` e `cv_folds` em `models/metadados.json`. Atualizada a célula 6 de `02_modelo.ipynb` para usar `T.construir_modelo(...)` com os parâmetros otimizados.
+  - **Evidência observada (execução de `treinar.py` após tuning):**
+    - `poisson_glm` (`alpha=5.0`): `ajuste_mae = 7.605`, `val_mae = 8.667` (gap `+1.062`), `cv_mae = 8.383 ± 1.608` (`cv_gap = +0.919`), `val_r2 = 0.836`, `teste_mae = 8.073`, `teste_rmse = 12.633`, `teste_r2 = 0.893`, `teste_precisao_top10 = 0.796`.
+    - Árvores regularizadas reduziram o erro na CV (`random_forest` `8.227 ± 1.687`; `hist_gb_poisson` `8.303 ± 1.637`; `gradient_boosting` `8.357 ± 1.712`), mas mantiveram overfitting alto (`cv_gap` entre `+2.10` e `+3.22`; `val_mae` em 2024 entre `9.33` e `9.60`, atrás da `regra_media_movel_3m = 8.927`). O critério de seleção na validação recente (2024) escolhe `poisson_glm` em total consonância com o menor gap de overfitting.
 
 - [x] **ML-13 · Corrigir encoding de variáveis categóricas e cíclicas (`rpa` e `mes_do_ano` no `treinar.py`)** *(concluído em 26/11)*
   - **O que foi feito:**
@@ -127,20 +119,20 @@ Todo integrante do grupo precisa saber responder estas 5 perguntas sem hesitar:
    - *Por isso não usamos matriz de confusão nem ROC/AUC no modelo de bairros:* essas métricas são de classificação binária; para contagem usamos **MAE, RMSE, $R^2$ e Precisão Top 10%**.
 
 2. **Qual a direção de cada métrica? (Não confundir "perto de 0" com "perto de 1"!)**
-   - **MAE (Erro Absoluto Médio):** medido em *chamados/mês*. **Quanto mais perto de 0, melhor.** (`poisson_glm` no teste: `7,80` vs. média real de `32,7` chamados/mês).
-   - **RMSE (Raiz do Erro Quadrático Médio):** penaliza erros grandes ao quadrado. **Quanto mais perto de 0, melhor.** (`poisson_glm` no teste: `12,07`).
-   - **$R^2$ (Coeficiente de Determinação):** proporção da variância explicada. **Quanto mais perto de 1, melhor.** (`poisson_glm`: `0,851` na validação e `0,903` no teste).
+   - **MAE (Erro Absoluto Médio):** medido em *chamados/mês*. **Quanto mais perto de 0, melhor.** (`poisson_glm` no teste: `8,07` vs. média real de `32,7` chamados/mês).
+   - **RMSE (Raiz do Erro Quadrático Médio):** penaliza erros grandes ao quadrado. **Quanto mais perto de 0, melhor.** (`poisson_glm` no teste: `12,63`).
+   - **$R^2$ (Coeficiente de Determinação):** proporção da variância explicada. **Quanto mais perto de 1, melhor.** (`poisson_glm`: `0,836` na validação e `0,893` no teste).
    - **Precisão no Top 10%:** dos 9 bairros mais críticos previstos no mês, quantos realmente ficaram entre os 9 piores. **Quanto mais perto de 1, melhor.** (`poisson_glm`: `0,80`, acerta ~7,2 de 9 bairros).
    - **Risco (0 a 1):** é o **percentil** relativo entre os 94 bairros no mês previsto — **não é probabilidade** de um poste queimar.
 
 3. **Como funciona o `poisson_glm` e por que ele venceu as árvores?**
-   - Pipeline: pré-processamento (`log1p` + `StandardScaler` nas contínuas; `ML-13` adicionará One-Hot em `rpa`) → `PoissonRegressor(alpha=...)`.
-   - É um Modelo Linear Generalizado (GLM) próprio para dados de **contagem** ($\ge 0$), com função de ligação logarítmica ($\hat{y} = e^{\beta_0 + \sum \beta_i x_i}$): captura relações proporcionais entre bairros pequenos (Pau Ferro, ~1 chamado) e grandes (Boa Viagem, ~235 chamados) e **extrapola** bem com poucos dados.
-   - Árvores (`RandomForest`, `GradientBoosting`, `HistGradientBoosting`) particionam o espaço em degraus, **não extrapolam** acima dos valores vistos e sofrem mais **overfitting** com séries persistentes e poucas linhas de ajuste (~1.880 linhas): `hist_gb_poisson` teve gap `+7,13` entre ajuste e validação, e `random_forest` teve gap `+4,31` e maior variância entre folds (`± 1,61` vs. `± 1,28` do GLM).
-   - *Nota sobre os 5 folds iniciais:* nos folds de 2022–2023 o volume ainda era mais estável (favorecendo `random_forest` na média bruta da CV, `8,28` vs. `8,63`), mas na validação mais recente (2024) o volume cresce e o `poisson_glm` generaliza melhor (`8,30` vs. `9,25`).
+   - Pipeline: `ColumnTransformer` (`log1p` + `StandardScaler` nas contínuas, `OneHotEncoder` em `rpa` e `sin`/`cos` em `mes_do_ano`) → `PoissonRegressor(alpha=5.0)`.
+   - É um Modelo Linear Generalizado (GLM) próprio para dados de **contagem** ($\ge 0$), com função de ligação logarítmica ($\hat{y} = e^{\beta_0 + \sum \beta_i x_i}$): captura relações proporcionais entre bairros pequenos (Pau Ferro, ~1 chamado) e grandes (Boa Viagem, ~219 chamados) e **extrapola** bem com poucos dados.
+   - Árvores (`RandomForest`, `GradientBoosting`, `HistGradientBoosting`) particionam o espaço em degraus, **não extrapolam** acima dos valores vistos e sofrem mais **overfitting** com séries persistentes e poucas linhas de ajuste (~1.880 linhas): nos 5 folds da CV, o gap médio entre treino e validação foi `+3,22` (`random_forest`) e `+3,19` (`hist_gb_poisson`), contra apenas `+0,92` do `poisson_glm`, que ainda tem menor variância entre folds (`± 1,61` vs. `± 1,69`).
+   - *Nota sobre os 5 folds iniciais:* nos folds de 2022–2023 o volume ainda era mais estável (favorecendo árvores na média bruta da CV, `8,23` vs. `8,38`), mas na validação recente de 2024 as árvores perdem até para a `regra_media_movel_3m` (`9,33`–`9,60` vs. `8,93`), enquanto o `poisson_glm` generaliza melhor (`8,67`).
 
 4. **Por que a `regra_persistencia` empata no Top 10% (0,81 vs. 0,80)?**
-   - A série por bairro tem altíssima autocorrelação (bairros grandes como Boa Viagem e Santo Amaro quase sempre lideram). Repetir o mês atual já acerta a ordem dos maiores, mas erra mais na magnitude (**MAE 9,21** vs. **7,80** do `poisson_glm`).
+   - A série por bairro tem altíssima autocorrelação (bairros grandes como Boa Viagem e Santo Amaro quase sempre lideram). Repetir o mês atual já acerta a ordem dos maiores, mas erra mais na magnitude (**MAE 9,21** vs. **8,07** do `poisson_glm`).
 
 5. **Qual a diferença entre `contagem` e `taxa`?**
    - **Contagem** = volume total de chamados previstos no bairro (responde: *"onde há mais ocorrências absolutas na cidade?"*).

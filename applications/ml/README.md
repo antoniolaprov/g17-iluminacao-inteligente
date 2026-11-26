@@ -221,35 +221,26 @@ se os dados mudarem. Principais achados (além do que já está nas seções aci
 
 ---
 
-## 7. Modelo treinado (25/11)
+## 7. Modelo treinado (atualizado em 26/11)
 
-`src/treinar.py` compara 4 modelos e as 2 regras simples, registra cada um como uma run no **MLflow**
-(experimento `risco_bairro`) e registra o escolhido no Model Registry (`risco_bairro`).
+`src/treinar.py` aplica pré-processamento por tipo (`log1p` + padronização só nas contínuas, `OneHotEncoder` em `rpa` e `sin`/`cos` em `mes_do_ano`), faz tuning via `TimeSeriesSplit(n_splits=5)` com nested runs no **MLflow** (experimento `risco_bairro`), compara os 4 modelos otimizados contra as 2 regras simples e registra o escolhido no Model Registry (`risco_bairro`).
 
-**Como escolhe, sem olhar o teste:** dentro do treino, os últimos 12 meses de alvo (2024) são a
-validação. O escolhido é o de menor MAE na validação. O teste (alvos de 2025) só é medido para o
-relatório. Depois, o escolhido é retreinado com tudo e prevê o mês seguinte ao último dado (2025-12).
+**Como escolhe, sem olhar o teste:** os hiperparâmetros de cada modelo são otimizados por `TimeSeriesSplit` dentro do treino; em seguida, o vencedor é escolhido pelo menor MAE na validação recente (os últimos 12 meses de alvo do treino, 2024). O teste (alvos de 2025) só é medido para o relatório. Depois, o escolhido é retreinado com tudo e prevê o mês seguinte ao último dado (2025-12).
 
-| Modelo | MAE validação | MAE teste | RMSE teste | Precisão top 10% (teste) | Top 10% por taxa (teste) |
-|---|---|---|---|---|---|
-| **`poisson_glm`** (escolhido) | **8,30** | **7,80** | **12,07** | 0,80 | 0,55 |
-| regra `media_movel_3m` | 8,93 | 8,66 | 13,65 | 0,75 | 0,57 |
-| `random_forest` | 9,25 | 7,90 | 12,17 | 0,80 | 0,55 |
-| regra persistência | 9,55 | 9,21 | 13,85 | **0,81** | 0,48 |
-| `hist_gb_poisson` | 9,95 | 8,27 | 12,97 | 0,78 | 0,55 |
-| `gradient_boosting` | 10,04 | 8,26 | 13,43 | 0,76 | 0,54 |
+| Modelo | MAE ajuste | MAE validação | CV temporal (5 folds) | MAE teste | RMSE teste | $R^2$ teste | Top 10% (teste) |
+|---|---|---|---|---|---|---|---|
+| **`poisson_glm`** (`alpha=5.0`, escolhido) | 7,61 | **8,67** | 8,38 ± 1,61 | 8,07 | 12,63 | 0,893 | 0,80 |
+| regra `media_movel_3m` | 9,53 | 8,93 | 9,42 ± 2,16 | 8,66 | 13,65 | 0,875 | 0,75 |
+| `random_forest` (`depth=8, leaf=3`) | 5,07 | 9,33 | **8,23** ± 1,69 | **7,83** | **12,15** | **0,901** | 0,80 |
+| `hist_gb_poisson` (`depth=5, lr=0.03`) | 5,15 | 9,51 | 8,30 ± 1,64 | 7,89 | 12,23 | 0,900 | **0,81** |
+| regra persistência | 8,87 | 9,55 | 9,22 ± 1,93 | 9,21 | 13,85 | 0,872 | 0,81 |
+| `gradient_boosting` (`depth=3, lr=0.03`) | 6,38 | 9,60 | 8,36 ± 1,71 | 8,26 | 13,02 | 0,887 | 0,76 |
 
 **Leitura honesta para o relatório:**
-- O `poisson_glm` (regressão de Poisson sobre o log das features, um modelo feito para contagens) é o
-  único que **vence a melhor regra na validação** e também tem o **menor MAE no teste** (7,80, abaixo
-  da meta de 8,66).
-- Na **precisão no top 10%** nenhum modelo passa a persistência (0,81): para "quais 9 bairros vão ter
-  mais chamados", repetir o mês atual já é muito bom. O ganho do modelo está em errar menos o volume.
-- Os modelos de árvore erram mais na validação do que no teste: com só ~1.900 linhas de ajuste e
-  séries muito persistentes, eles decoram o histórico. Modelos lineares/de contagem generalizam melhor
-  aqui.
-- Por taxa (chamados por 1.000 postes), todos ficam em ~0,55: prever **onde cada poste falha mais** é
-  bem mais difícil do que prever onde há mais volume.
+- O `poisson_glm` (regressão de Poisson sobre contínuas em log + `rpa` one-hot + mês cíclico) é o único modelo que **vence a melhor regra na validação recente** (`8,67 < 8,93`) e tem o **menor overfitting** (`gap` médio na CV de `+0,92`, contra `+2,10` a `+3,22` das árvores), além de atingir MAE de **8,07** no teste (abaixo da meta de 8,66) e $R^2$ de **0,893**.
+- Na **precisão no top 10%** no teste, `poisson_glm` e `random_forest` fazem `0,80` e `hist_gb_poisson` faz `0,815` (praticamente empatados com a persistência em `0,806`): para "quais 9 bairros vão ter mais chamados", repetir o mês atual já é forte, e o ganho principal do GLM está em errar menos o volume sem sobreajustar.
+- Os modelos de árvore têm erro bem menor no ajuste (`5,07` a `6,38`) que na validação de 2024 (`9,33` a `9,60`), evidenciando *overfitting* em séries curtas e persistentes mesmo após regularização na busca de hiperparâmetros.
+- Por taxa (chamados por 1.000 postes), todos ficam em ~0,55 no top 10%: prever **onde cada poste falha mais** é bem mais difícil do que prever onde há mais volume.
 
 **Saídas** (em `models/`, pequenas, vão para o Git para a API funcionar logo depois do clone):
 `risco_por_bairro.csv` (risco de cada bairro por contagem e por taxa), `metadados.json` (modelo,
@@ -288,7 +279,7 @@ Como rodar tudo: [`applications/README.md`](../README.md).
 - [ ] Escolher um `id_ponto` real para o `P01` no `config.json` (precisa dos dados brutos)
 - [x] `ML-01`: validação cruzada temporal (`TimeSeriesSplit` por `mes_do_alvo`), métricas de ajuste vs. validação (`gap_val_ajuste_mae`) e $R^2$ no `treinar.py`
 - [x] `ML-13`: `ColumnTransformer` no `treinar.py` (`log1p`+escala só nas contínuas, `OneHotEncoder` em `rpa`, `sin`/`cos` em `mes_do_ano`)
+- [x] `ML-02`: Grid Search via `TimeSeriesSplit` com nested runs (`fase=tuning`) no MLflow e histórico por fold em `metadados.json`
 - [ ] **Demais pendências da auditoria contra a rubrica oficial (ver [`docs/AUDITORIA_ML.md`](../../docs/AUDITORIA_ML.md)):**
-      otimização de hiperparâmetros e critério unificado no MLflow (`ML-02`),
       baseline clássico + artefatos no MLflow (`ML-03`), gráficos de resíduos/Real×Previsto/R² (`ML-04`) e
       consumo de dados vivos do embarcado no SQLite (`ML-05`).

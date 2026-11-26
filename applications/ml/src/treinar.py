@@ -32,6 +32,7 @@ import mlflow
 import mlflow.sklearn
 import numpy as np
 import pandas as pd
+from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import (
     GradientBoostingRegressor,
@@ -40,7 +41,7 @@ from sklearn.ensemble import (
 )
 from sklearn.linear_model import PoissonRegressor
 from sklearn.metrics import r2_score
-from sklearn.model_selection import TimeSeriesSplit
+from sklearn.model_selection import ParameterGrid, TimeSeriesSplit
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import FunctionTransformer, OneHotEncoder, StandardScaler
 
@@ -108,24 +109,64 @@ def medir(df: pd.DataFrame, previsto: np.ndarray, prefixo: str) -> dict:
     }
 
 
-def avaliar_cv_temporal(nome: str, treino: pd.DataFrame, n_splits: int = 5) -> dict:
-    """Executa TimeSeriesSplit agrupado por mes_do_alvo para medir estabilidade sem vazamento."""
+def avaliar_cv_temporal(modelo_base, treino: pd.DataFrame, n_splits: int = 5) -> tuple[dict, list[dict]]:
+    """Executa TimeSeriesSplit agrupado por mes_do_alvo medindo treino, validacao e estabilidade."""
     meses = np.array(sorted(treino["mes_do_alvo"].unique()))
     tscv = TimeSeriesSplit(n_splits=n_splits)
     folds = []
-    for idx_tr, idx_va in tscv.split(meses):
+    for indice, (idx_tr, idx_va) in enumerate(tscv.split(meses), start=1):
         tr = treino[treino["mes_do_alvo"].isin(meses[idx_tr])]
         va = treino[treino["mes_do_alvo"].isin(meses[idx_va])]
-        modelo, _ = candidatos()[nome]
+        modelo = clone(modelo_base)
         modelo.fit(tr[FEATURES], tr[ALVO])
-        folds.append(medir(va, modelo.predict(va[FEATURES]), "cv"))
+        aj_fold = medir(tr, modelo.predict(tr[FEATURES]), "cv_ajuste")
+        va_fold = medir(va, modelo.predict(va[FEATURES]), "cv")
+        folds.append({
+            "fold": indice,
+            "val_inicio": str(meses[idx_va][0]),
+            "val_fim": str(meses[idx_va][-1]),
+            "cv_ajuste_mae": aj_fold["cv_ajuste_mae"],
+            "cv_gap_mae": va_fold["cv_mae"] - aj_fold["cv_ajuste_mae"],
+            **va_fold,
+        })
 
     resumo = {}
-    for metrica in ("cv_mae", "cv_rmse", "cv_r2", "cv_precisao_top10"):
+    for metrica in ("cv_ajuste_mae", "cv_mae", "cv_gap_mae", "cv_rmse", "cv_r2", "cv_precisao_top10"):
         valores = [f[metrica] for f in folds]
         resumo[f"{metrica}_mean"] = float(np.mean(valores))
         resumo[f"{metrica}_std"] = float(np.std(valores, ddof=1))
-    return resumo
+    return resumo, folds
+
+
+def limpar_parametros(params: dict) -> dict:
+    """Remove prefixos de etapa do Pipeline para legibilidade no MLflow e metadados."""
+    return {chave.split("__", 1)[-1]: valor for chave, valor in params.items()}
+
+
+def otimizar_hiperparametros(
+    nome: str, modelo_base, grade: dict, treino: pd.DataFrame, n_splits: int = 5
+) -> tuple[dict, dict, list[dict], int]:
+    """Busca a melhor combinacao via TimeSeriesSplit, registrando cada teste como nested run no MLflow."""
+    combinacoes = list(ParameterGrid(grade))
+    melhor = None
+    for idx, params in enumerate(combinacoes, start=1):
+        candidato = clone(modelo_base).set_params(**params)
+        resumo, folds = avaliar_cv_temporal(candidato, treino, n_splits=n_splits)
+        params_limpos = limpar_parametros(params)
+        with mlflow.start_run(run_name=f"{nome}_tuning_{idx}", nested=True):
+            mlflow.set_tag("fase", "tuning")
+            mlflow.set_tag("modelo", nome)
+            mlflow.log_params(params_limpos)
+            mlflow.log_metrics({
+                "cv_mae_mean": resumo["cv_mae_mean"],
+                "cv_mae_std": resumo["cv_mae_std"],
+                "cv_ajuste_mae_mean": resumo["cv_ajuste_mae_mean"],
+                "cv_gap_mae_mean": resumo["cv_gap_mae_mean"],
+                "cv_r2_mean": resumo["cv_r2_mean"],
+            })
+        if melhor is None or resumo["cv_mae_mean"] < melhor[1]["cv_mae_mean"]:
+            melhor = (params, resumo, folds)
+    return (*melhor, len(combinacoes))
 
 
 # ---------------- candidatos ----------------
@@ -139,6 +180,14 @@ class Regra:
 
     def predict(self, X):
         return X[self.coluna].to_numpy(dtype=float)
+
+    def get_params(self, deep: bool = True) -> dict:
+        return {"coluna": self.coluna}
+
+    def set_params(self, **params):
+        for chave, valor in params.items():
+            setattr(self, chave, valor)
+        return self
 
 
 def criar_preprocessador(escalar_continuas: bool) -> ColumnTransformer:
@@ -192,6 +241,46 @@ def candidatos() -> dict:
     }
 
 
+def espacos_tuning() -> dict:
+    """Grade de hiperparametros avaliada por TimeSeriesSplit para cada modelo treinavel."""
+    return {
+        "random_forest": {
+            "randomforestregressor__n_estimators": [250],
+            "randomforestregressor__max_depth": [5, 8, None],
+            "randomforestregressor__min_samples_leaf": [3, 5, 10],
+        },
+        "gradient_boosting": {
+            "gradientboostingregressor__n_estimators": [150, 300],
+            "gradientboostingregressor__learning_rate": [0.03, 0.05],
+            "gradientboostingregressor__max_depth": [2, 3],
+        },
+        "hist_gb_poisson": {
+            "histgradientboostingregressor__max_iter": [150, 300],
+            "histgradientboostingregressor__learning_rate": [0.03, 0.05],
+            "histgradientboostingregressor__max_depth": [3, 5],
+            "histgradientboostingregressor__min_samples_leaf": [10],
+        },
+        "poisson_glm": {
+            "poissonregressor__alpha": [0.001, 0.01, 0.05, 0.1, 0.5, 1.0, 3.0, 5.0],
+        },
+    }
+
+
+def construir_modelo(nome: str, params_limpos: dict | None = None):
+    """Instancia um candidato aplicando parametros otimizados (se fornecidos)."""
+    modelo, _ = candidatos()[nome]
+    if not params_limpos:
+        return modelo
+    ultimo_passo = list(modelo.named_steps)[-1] if hasattr(modelo, "named_steps") else None
+    todos = modelo.get_params()
+    validos = {}
+    for k, v in params_limpos.items():
+        chave = f"{ultimo_passo}__{k}" if ultimo_passo else k
+        if chave in todos:
+            validos[chave] = v
+    return modelo.set_params(**validos) if validos else modelo
+
+
 def registrar_modelo(modelo, exemplo: pd.DataFrame) -> None:
     """Loga o modelo no MLflow e registra no Model Registry.
 
@@ -235,11 +324,34 @@ def main() -> None:
 
     preparar_mlflow()
     n_splits_cv = 5
+    grades = espacos_tuning()
     resultados = {}
-    for nome, (modelo, params) in candidatos().items():
+    folds_por_modelo = {}
+    params_por_modelo = {}
+
+    for nome, (modelo_base, params_meta) in candidatos().items():
         with mlflow.start_run(run_name=nome) as run:
-            mlflow.log_params({"modelo": nome, "features": ",".join(FEATURES), "cv_splits": n_splits_cv, **params})
-            metricas = avaliar_cv_temporal(nome, treino, n_splits=n_splits_cv)
+            if nome in grades:
+                melhores_pipeline_params, metricas, folds, total_combos = otimizar_hiperparametros(
+                    nome, modelo_base, grades[nome], treino, n_splits=n_splits_cv
+                )
+                modelo = clone(modelo_base).set_params(**melhores_pipeline_params)
+                params_otimos = limpar_parametros(melhores_pipeline_params)
+            else:
+                modelo = clone(modelo_base)
+                metricas, folds = avaliar_cv_temporal(modelo, treino, n_splits=n_splits_cv)
+                params_otimos = {}
+                total_combos = 1
+
+            params_run = {**params_meta, **params_otimos}
+            mlflow.log_params({
+                "modelo": nome,
+                "features": ",".join(FEATURES),
+                "cv_splits": n_splits_cv,
+                "tuning_combinacoes": total_combos,
+                **params_run,
+            })
+
             modelo.fit(ajuste[FEATURES], ajuste[ALVO])
             metricas.update(medir(ajuste, modelo.predict(ajuste[FEATURES]), "ajuste"))
             metricas.update(medir(validacao, modelo.predict(validacao[FEATURES]), "val"))
@@ -248,27 +360,32 @@ def main() -> None:
             metricas.update(medir(teste, modelo.predict(teste[FEATURES]), "teste"))
             mlflow.log_metrics(metricas)
             mlflow.set_tag("fase", "comparacao")
+
             resultados[nome] = {**metricas, "run_id": run.info.run_id}
+            folds_por_modelo[nome] = folds
+            params_por_modelo[nome] = params_run
 
     tabela = pd.DataFrame(resultados).T.drop(columns="run_id").astype(float)
     colunas_resumo = [
         "ajuste_mae", "val_mae", "gap_val_ajuste_mae",
-        "cv_mae_mean", "cv_mae_std", "val_r2",
-        "teste_mae", "teste_rmse", "teste_r2", "teste_precisao_top10",
+        "cv_ajuste_mae_mean", "cv_mae_mean", "cv_mae_std", "cv_gap_mae_mean",
+        "val_r2", "teste_mae", "teste_rmse", "teste_r2", "teste_precisao_top10",
     ]
-    print("\nComparacao (escolha pela MAE de validacao; teste so para o relatorio):")
+    print("\nComparacao (tuning por TimeSeriesSplit; escolha pela MAE na validacao recente de 2024):")
     print(tabela[colunas_resumo].sort_values("val_mae").round(3).to_string())
 
     modelos_treinaveis = [n for n in resultados if not n.startswith("regra_")]
     escolhido = min(modelos_treinaveis, key=lambda n: resultados[n]["val_mae"])
     melhor_regra = min((n for n in resultados if n.startswith("regra_")), key=lambda n: resultados[n]["val_mae"])
     venceu = resultados[escolhido]["val_mae"] < resultados[melhor_regra]["val_mae"]
-    print(f"\nEscolhido: {escolhido} (val_mae {resultados[escolhido]['val_mae']:.2f}) | "
+    print(f"\nEscolhido: {escolhido} (val_mae {resultados[escolhido]['val_mae']:.2f}, "
+          f"cv_gap {resultados[escolhido]['cv_gap_mae_mean']:+.2f}, params {params_por_modelo[escolhido]}) | "
           f"melhor regra: {melhor_regra} (val_mae {resultados[melhor_regra]['val_mae']:.2f}) | "
           f"{'o modelo VENCE a regra' if venceu else 'o modelo NAO vence a regra'} na validacao")
 
-    # Producao: retreina o escolhido com tudo e preve o mes seguinte ao ultimo dado de cada bairro
-    modelo_final, params = candidatos()[escolhido]
+    # Producao: retreina o escolhido com os hiperparametros otimizados em toda a base
+    modelo_final = construir_modelo(escolhido, params_por_modelo[escolhido])
+    params = params_por_modelo[escolhido]
     modelo_final.fit(df[FEATURES], df[ALVO])
     ultimo = df.sort_values("ano_mes").groupby("bairro_norm").tail(1).copy()
     ultimo["previsao_chamados"] = modelo_final.predict(ultimo[FEATURES]).clip(min=0).round(1)
@@ -289,12 +406,18 @@ def main() -> None:
         "treinado_em": datetime.now().isoformat(timespec="seconds"),
         "modelo": escolhido,
         "parametros": params,
+        "parametros_por_modelo": params_por_modelo,
         "features": FEATURES,
         "alvo": ALVO,
         "cv_estrategia": f"TimeSeriesSplit(n_splits={n_splits_cv}) por mes_do_alvo no conjunto de treino",
+        "criterio_selecao": "menor val_mae (alvos 2024) apos tuning via TimeSeriesSplit",
         "mes_previsto": str(risco["mes_previsto"].iloc[0]),
         "vence_regra_simples_na_validacao": bool(venceu),
         "metricas": {n: {k: round(v, 4) for k, v in r.items() if k != "run_id"} for n, r in resultados.items()},
+        "cv_folds": {
+            n: [{k: round(v, 4) if isinstance(v, float) else v for k, v in f.items()} for f in fl]
+            for n, fl in folds_por_modelo.items()
+        },
     }
     (SAIDA / "metadados.json").write_text(json.dumps(metadados, ensure_ascii=False, indent=2), encoding="utf-8")
 

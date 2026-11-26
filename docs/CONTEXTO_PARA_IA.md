@@ -297,14 +297,9 @@ Só o número de postes já acerta 66% do top 10%: em contagem absoluta, "risco"
 bairro". Recomendação: mostrar também o ranking por **taxa prevista por 1.000 postes** e o grupo decidir
 qual vira o risco publicado.
 
-### 10.7 Modelo treinado (25/11)
-`treinar.py` compara `random_forest`, `gradient_boosting`, `hist_gb_poisson`, `poisson_glm` e as duas regras,
-com a escolha pela MAE de **validação** (alvos de 2024, dentro do treino), e mede o teste só para o
-relatório. Escolhido: **`poisson_glm`** (regressão de Poisson sobre `log1p` das features, padronizadas):
-MAE validação **8,30** (regra: 8,93), MAE teste **7,80** (meta: < 8,66), precisão no top 10% no teste
-**0,80** (a persistência faz 0,81, nenhum modelo passou). Tabela completa em
-`applications/ml/README.md` seção 7 e em `models/metadados.json`. O risco publicado é o percentil da
-previsão de 2025-12 entre os bairros (`criterio_risco` no `config.json`: `contagem` ou `taxa`).
+### 10.7 Modelo treinado (atualizado em 26/11)
+`treinar.py` usa `ColumnTransformer` (`log1p` + padronização nas contínuas, `OneHotEncoder` em `rpa` e `sin`/`cos` em `mes_do_ano`), faz tuning por `TimeSeriesSplit(n_splits=5)` (33 nested runs no MLflow), compara `random_forest`, `gradient_boosting`, `hist_gb_poisson`, `poisson_glm` e as duas regras, escolhe pela MAE de **validação** (alvos de 2024, dentro do treino) e mede o teste só para o relatório. Escolhido: **`poisson_glm`** (`alpha=5.0`):
+MAE validação **8,67** (regra: 8,93), MAE teste **8,07** (meta: < 8,66), $R^2$ teste **0,893**, precisão no top 10% no teste **0,80** (a persistência faz 0,81). Tabela completa em `applications/ml/README.md` seção 7 e em `models/metadados.json`; auditoria das tasks restantes em `docs/AUDITORIA_ML.md`. O risco publicado é o percentil da previsão de 2025-12 entre os bairros (`criterio_risco` no `config.json`: `contagem` ou `taxa`).
 
 ### 10.6 Correções feitas em 25/11 (revisão)
 - **Vazamento no split:** a linha de 2024-12 (alvo = 2025-01, período de teste) estava no treino. Corrigido
