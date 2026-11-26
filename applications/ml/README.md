@@ -262,7 +262,56 @@ Como rodar tudo: [`applications/README.md`](../README.md).
 
 ---
 
-## 8. Situação
+## 8. Modelo de rota da cascata em Y (26/11)
+
+`src/prever_rota.py` responde a pergunta da cascata: **o pedestre que acabou de passar pelo S1 vai para
+o braço esquerdo ou para o direito?** É o ML que fecha o ciclo com o embarcado: a placa manda
+`g17/poste/P01/evento` com a distância medida no S1, o serviço responde `g17/poste/P01/rota` com o braço e a
+confiança, e o firmware acende esse braço antes de o pedestre chegar. Cada travessia confirmada pelo S2
+volta como `g17/poste/P01/travessia` e entra no banco do coletor, que é a base de treino.
+
+| Modo | O que faz |
+|---|---|
+| `prever_rota.py gerar` | Gera 800 travessias sintéticas (`data/processed/travessias_sinteticas.csv`) com o mesmo modelo do simulador (`applications/simulador/cascata.py`) |
+| `prever_rota.py treinar` | Junta as travessias do banco (placa = origem vazia/"real", simulador = "simulador") com as sintéticas, compara modelos, registra no MLflow (experimento e modelo `rota_pedestre`) e salva `models/modelo_rota.joblib` + `models/metadados_rota.json` |
+| `prever_rota.py servir` | Assina `.../evento`, responde `.../rota` e **treina de novo sozinho** quando chegam 30 travessias novas no banco (`RETREINO_NOVAS`), conferindo a cada 5 min (`RETREINO_S`). É o requisito de consumir automaticamente os dados novos do embarcado |
+
+**Entradas:** `dist_s1` (em que lado da rua o pedestre passou pelo S1) e a hora do dia (seno/cosseno).
+**Alvo:** o braço real, confirmado pelo S2 (disparou = esquerda; não disparou em 4 s = direita).
+**Validação:** treino com os 75% mais antigos e teste com os 25% mais recentes; escolha pela acurácia média
+numa validação cruzada estratificada de 5 partes, dentro do treino.
+
+**Resultado com os dados de hoje** (800 sintéticas + 28 do simulador, 0 reais):
+
+| Modelo | Acurácia CV | Acurácia teste | Log loss teste |
+|---|---|---|---|
+| maioria (baseline) | 0,525 | 0,541 | 6,34 |
+| regra do lado (< 5 cm = direita) | 0,857 | 0,816 | 2,54 |
+| **regressão logística** (escolhida) | 0,852 | 0,816 | **0,51** |
+| árvore rasa (profundidade 3) | 0,852 | 0,816 | 0,50 |
+
+**Leitura honesta (para o relatório):**
+- Os dados ainda são **simulados**: o simulador foi calibrado com o que a placa mediu em 26/11 (distâncias,
+  tempos do S2), e o padrão "perto do S1 vai para a direita" foi colocado nele com 85% de consistência. Por
+  isso o modelo chega aos mesmos ~85% da regra: ele reaprende o padrão que a simulação tem. Isso valida o
+  **encanamento** (placa → evento → modelo → rota → placa → travessia → retreino), não a capacidade de prever
+  pedestres de verdade.
+- O ganho do modelo sobre a regra fixa é a **confiança calibrada** (log loss 0,51 contra 2,54): o firmware só
+  usa previsões com confiança ≥ 0,5, e o modelo diz quando está em dúvida (perto dos 5 cm). Ele também
+  **descobre o limiar sozinho** com os dados reais: se na maquete o padrão estiver invertido ou o limiar for
+  outro, o retreino corrige, e a regra fixa não.
+- No dia da apresentação, com a maquete: coletar ~10 min de travessias reais (`origem` vazia no banco),
+  rodar `prever_rota.py treinar` e apresentar as métricas só nos dados reais (o treino mostra
+  `teste_reais_*` quando há pelo menos 30 reais no teste).
+- Teste ponta a ponta feito em casa (26/11): `P01` simulado + serviço de rota + coletor, o modelo previu
+  todas as travessias e acertou 7 de 9; o dashboard mostra o acerto ao vivo.
+
+**API:** `GET /rota?dist_s1=4.2` → `{"direcao_provavel": "direita", "confianca": 0.86, ...}` e
+`GET /rota/metricas` (treino + acurácia ao vivo, lida das travessias com `fonte = "modelo"`).
+
+---
+
+## 9. Situação
 
 - [x] `data/raw/` baixado (postes 2025 + 156 de 2022-2025 + dicionário)
 - [x] `src/preparar_dados.py` (normalização, cruzamento por bairro, alvo, split pelo mês do alvo)
@@ -275,6 +324,8 @@ Como rodar tudo: [`applications/README.md`](../README.md).
 - [x] `config.json` (P01 = Boa Viagem; P02..P10 = bairros com riscos alto, médio e baixo)
 - [x] Notebook de EDA executado de novo com o split corrigido
 - [x] `notebooks/02_modelo.ipynb` com gráficos da comparação e dos coeficientes, para o relatório
+- [x] Modelo de rota da cascata em Y (`src/prever_rota.py`), serviço MQTT, API e retreino automático
+- [ ] Coletar travessias reais com a maquete e treinar a rota de novo com elas
 - [ ] Decidir qual ranking vira o risco publicado: contagem (padrão) ou taxa (`criterio_risco` no
       `config.json`)
 - [ ] Escolher um `id_ponto` real para o `P01` no `config.json` (precisa dos dados brutos)

@@ -6,10 +6,11 @@ Tudo o que roda no PC, do lado da "central da prefeitura". O formato das mensage
 | Pasta / arquivo | O que é | Situação |
 |---|---|---|
 | [`broker/mosquitto.conf`](broker/mosquitto.conf) | Mosquitto local: 1883 (MQTT) e 9001 (WebSocket), IPv4 e IPv6 | Pronto, testado |
-| [`backend/coletor.py`](backend/coletor.py) | Assina telemetria, status e risco e grava em SQLite; alertas de FALHA/offline (Telegram opcional) | Pronto, testado |
-| [`simulador/simulador.py`](simulador/simulador.py) | Postes virtuais `P02`..`P10` no mesmo contrato do ESP32 | Pronto, testado |
-| [`dashboard/`](dashboard/) | Dashboard web em tempo real, com o risco do ML | Pronto, testado com a placa |
-| [`ml/`](ml/) | Dados da Emlurb, modelo de risco, MLflow, API e DAG do Airflow ([README](ml/README.md)) | Pronto, ver detalhes |
+| [`broker/mosquitto-ponte.conf`](broker/mosquitto-ponte.conf) | Mosquitto local + ponte com o HiveMQ: a placa fica no broker público, sem regravar, e o PC usa o local | Pronto, testado nos dois sentidos |
+| [`backend/coletor.py`](backend/coletor.py) | Assina telemetria, status, risco, evento e travessia e grava em SQLite; alertas de FALHA/offline (Telegram opcional) | Pronto, testado |
+| [`simulador/simulador.py`](simulador/simulador.py) + [`cascata.py`](simulador/cascata.py) | Postes virtuais `P02`..`P10`; com `SIM_INCLUIR_P01=1`, também o `P01` com a cascata em Y do firmware v3.0, calibrado com as medidas da placa | Pronto, testado |
+| [`dashboard/`](dashboard/) | Dashboard web em tempo real, com o risco do ML e a cascata em Y (3 postes, rota, travessias e acerto do modelo) | Pronto, testado |
+| [`ml/`](ml/) | Dados da Emlurb, modelo de risco por bairro, **modelo de rota da cascata** (`src/prever_rota.py`), MLflow, API e DAG do Airflow ([README](ml/README.md)) | Pronto, ver detalhes |
 | [`docker-compose.yml`](docker-compose.yml) + [`Dockerfile`](Dockerfile) + [`airflow/Dockerfile`](airflow/Dockerfile) | Sobe tudo em containers | Pronto, testado |
 | [`comum.py`](comum.py) | Configuração MQTT compartilhada (variáveis de ambiente) | — |
 
@@ -39,14 +40,21 @@ Para desligar: `docker compose --profile sim --profile airflow down`.
 
 ## Trabalhando sem a maquete (de casa)
 
-A maquete (ESP32 = `P01`) fica na faculdade. Para testar tudo em casa, simule também o `P01`:
+A maquete (ESP32 = `P01`) fica na faculdade. Para testar tudo em casa, simule também o `P01`, que vem
+com a cascata em Y do firmware v3.0 (S1, S2, eventos, travessias e obediência à previsão de rota):
 
 ```bash
 cd applications
-docker compose up -d --build
+docker compose up -d --build                             # inclui o serviço de rota (modelo da cascata)
 SIM_INCLUIR_P01=1 docker compose --profile sim up -d    # P01..P10 simulados
 docker compose run --rm publicar                         # o P01 (Boa Viagem) recebe risco alto -> 90%
 ```
+
+Com isso o ciclo completo roda em casa: o `P01` simulado manda `evento` ao passar no S1, o serviço de
+rota responde `rota` na hora, o simulador acende só o braço previsto, o S2 confirma, a travessia vai para
+o banco e o modelo é treinado de novo sozinho quando chegam 30 travessias novas. Ajustes do simulador:
+`SIM_PEDESTRE_S` (média de segundos entre pedestres, padrão 12) e `SIM_CONSISTENCIA` (chance de o
+pedestre seguir o padrão do lado da rua, padrão 0,85; com 0,5 o caminho é aleatório e nenhum modelo acerta).
 
 No PowerShell, troque a segunda linha por `$env:SIM_INCLUIR_P01=1; docker compose --profile sim up -d`.
 
@@ -74,10 +82,22 @@ público de teste: `MQTT_HOST=broker.hivemq.com`.
 
 ## Ligar o poste físico (ESP32) no Mosquitto local
 
-No firmware, troque `MQTT_BROKER` (hoje `broker.hivemq.com`) pelo **IP do PC na rede** (veja com
-`ipconfig`, "Endereço IPv4" do Wi-Fi) e grave de novo. O PC e o ESP32 precisam estar na mesma rede
-(o roteador do celular resolve se a rede da faculdade isolar os aparelhos). No Windows, libere a
-porta 1883 no firewall na primeira vez que o Docker pedir.
+**Jeito recomendado (sem regravar a placa): ponte com o HiveMQ.** A placa continua publicando no
+`broker.hivemq.com`, como está gravada, e o Mosquitto local traz as mensagens do `P01` (telemetria,
+status, evento, travessia) e leva de volta só o que é para ela (comando, rota, risco):
+
+```bash
+cd applications
+MOSQUITTO_CONF=mosquitto-ponte.conf docker compose up -d
+```
+
+No PowerShell: `$env:MOSQUITTO_CONF="mosquitto-ponte.conf"; docker compose up -d`. Precisa de internet
+no PC e na placa. **Não** ligue o `P01` simulado junto com a ponte.
+
+**Jeito direto:** no firmware, troque `MQTT_BROKER` pelo **IP do PC na rede** (`ipconfig`, "Endereço
+IPv4" do Wi-Fi) e grave de novo. O PC e o ESP32 precisam estar na mesma rede (o roteador do celular
+resolve se a rede da faculdade isolar os aparelhos). No Windows, libere a porta 1883 no firewall na
+primeira vez que o Docker pedir.
 
 ## IPv6
 

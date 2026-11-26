@@ -351,10 +351,13 @@ Ordem sugerida pelo risco para a nota. Entrega dos documentos em **03/12**; demo
 | F1 | Hardware: 3 postes em pinos separados + S2 | ✅ Feito e testado na placa (26/11) |
 | F2 | Firmware v3.0 com a cascata por regra (pré-acende os dois braços, S2 confirma) | ✅ Feito e testado na placa (26/11) |
 | F3 | Coletor gravando os campos novos e as tabelas `travessia` e `evento` | ✅ Feito e testado |
-| F4 | Coletar pelo menos 20 min de travessias com a maquete (passando o boneco de um jeito consistente por lado da rua, para o modelo ter um sinal) | ~100+ linhas na tabela `travessia` |
-| F5 | `applications/ml/src/prever_rota.py`: classificador (regressão logística ou árvore rasa) com `dist_s1` e o que mais houver, experimento `rota_pedestre` no MLflow; serviço que assina `.../evento` e publica `.../rota` | O firmware mostra `rota_fonte=modelo` e acende só o braço previsto |
-| F6 | API: `GET /rota/...` com a previsão e a taxa de acerto | Rota respondendo |
-| F7 | Dashboard mostrando os 3 postes, a rota prevista e as travessias | Visível na demo |
+| F4 | Coletar travessias **reais** com a maquete (no dia da apresentação, ~10 min, passando o boneco de um jeito consistente por lado da rua) e rodar `prever_rota.py treinar` | Linhas com `origem` vazia na tabela `travessia`; métricas `teste_reais_*` no treino |
+| F5 | `applications/ml/src/prever_rota.py` (gerar / treinar / servir), experimento e modelo `rota_pedestre` no MLflow, serviço `rota` no Docker, retreino automático com dados novos, tarefa `treinar_rota` no Airflow | ✅ Feito e testado ponta a ponta com o `P01` simulado (26/11) |
+| F6 | API: `GET /rota?dist_s1=...` e `GET /rota/metricas` | ✅ Feito e testado |
+| F7 | Dashboard com a cascata em Y (3 postes, rota, travessias, acerto) | ✅ Feito e testado |
+| F8 | Simulador do `P01` com a cascata (`applications/simulador/cascata.py`), calibrado com as medidas da placa | ✅ Feito |
+| F9 | Ponte Mosquitto local ↔ HiveMQ (`broker/mosquitto-ponte.conf`): placa sem regravar | ✅ Feito e testado nos dois sentidos |
+| F10 | Testar o firmware v3.0 + serviço de rota juntos (Wokwi pelo HiveMQ ou a placa no dia) | Placa ou Wokwi mostrando `rota_fonte=modelo` |
 
 ### A. Infraestrutura (Funcionamento, 20 pts)
 | # | Tarefa | Pronto quando |
