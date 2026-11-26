@@ -7,6 +7,8 @@ Rotas:
     GET  /riscos                ranking de todos os bairros (?criterio=contagem|taxa&limite=N)
     GET  /poste/{poste_id}      bairro do poste (config.json), risco e potência sugerida
     POST /prever                previsão do modelo para features enviadas no corpo (JSON)
+    GET  /rota?dist_s1=4.2      cascata em Y: braço provável do pedestre que passou pelo S1
+    GET  /rota/metricas         treino do modelo de rota e acurácia ao vivo
 
 Lê o que o treinar.py gera em applications/ml/models/ (risco_por_bairro.csv, metadados.json,
 modelo_risco.joblib) e recarrega sozinha quando esses arquivos mudam (novo treino).
@@ -17,7 +19,11 @@ Uso:
 """
 
 import json
+import math
+import os
+import sqlite3
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import joblib
@@ -150,3 +156,63 @@ def prever(features: Features):
     colunas = estado.meta.get("features") or list(linha)
     previsto = float(estado.modelo.predict(pd.DataFrame([linha])[colunas])[0])
     return {"previsao_chamados_mes_seguinte": round(max(previsto, 0.0), 1), "modelo": estado.meta.get("modelo")}
+
+
+# =============================================================
+#  Rota do pedestre na cascata em Y (modelo do prever_rota.py)
+# =============================================================
+ARQ_MODELO_ROTA = MODELOS / "modelo_rota.joblib"
+ARQ_META_ROTA = MODELOS / "metadados_rota.json"
+DB_PATH = Path(os.getenv("DB_PATH", RAIZ.parent / "backend" / "dados" / "central.db"))
+
+
+class EstadoRota:
+    marca = None
+    modelo = None
+    meta = {}
+
+
+def carregar_rota() -> EstadoRota:
+    if not ARQ_MODELO_ROTA.exists():
+        raise HTTPException(503, "Modelo de rota ainda não treinado: rode prever_rota.py treinar")
+    marca = (ARQ_MODELO_ROTA.stat().st_mtime, ARQ_META_ROTA.stat().st_mtime if ARQ_META_ROTA.exists() else 0)
+    if marca != EstadoRota.marca:
+        EstadoRota.modelo = joblib.load(ARQ_MODELO_ROTA)
+        EstadoRota.meta = json.loads(ARQ_META_ROTA.read_text(encoding="utf-8")) if ARQ_META_ROTA.exists() else {}
+        EstadoRota.marca = marca
+    return EstadoRota
+
+
+@app.get("/rota")
+def rota(dist_s1: float = Query(..., gt=0, le=400, description="distância medida pelo S1 na entrada, em cm"),
+         hora: float | None = Query(None, ge=0, lt=24, description="hora do dia (padrão: agora)")):
+    """Para onde vai o pedestre que passou pelo S1 a esta distância: esquerda ou direita."""
+    estado = carregar_rota()
+    if hora is None:
+        agora = datetime.now()
+        hora = agora.hour + agora.minute / 60
+    entrada = pd.DataFrame([{"dist_s1": dist_s1, "hora_sin": math.sin(2 * math.pi * hora / 24),
+                             "hora_cos": math.cos(2 * math.pi * hora / 24)}])
+    colunas = estado.meta.get("features") or list(entrada)
+    proba = estado.modelo.predict_proba(entrada[colunas])[0]
+    classes = [str(c) for c in estado.modelo.classes_]
+    i = int(proba.argmax())
+    return {"direcao_provavel": classes[i], "confianca": round(float(proba[i]), 3),
+            "probabilidades": {c: round(float(p), 3) for c, p in zip(classes, proba)},
+            "modelo": estado.meta.get("modelo")}
+
+
+@app.get("/rota/metricas")
+def rota_metricas():
+    """Como o modelo de rota foi treinado e quanto ele acerta ao vivo (travessias com fonte "modelo")."""
+    estado = carregar_rota()
+    resposta = {k: estado.meta.get(k) for k in ("modelo", "treinado_em", "linhas", "origens", "metricas")}
+    if DB_PATH.exists():
+        try:
+            with sqlite3.connect(DB_PATH) as db:
+                linhas = db.execute("SELECT acertou FROM travessia WHERE fonte = 'modelo' AND acertou >= 0").fetchall()
+            resposta["ao_vivo"] = {"previsoes": len(linhas), "acertos": sum(a for (a,) in linhas),
+                                   "acuracia": round(sum(a for (a,) in linhas) / len(linhas), 3) if linhas else None}
+        except sqlite3.Error:
+            resposta["ao_vivo"] = None
+    return resposta

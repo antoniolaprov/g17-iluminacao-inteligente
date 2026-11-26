@@ -1,7 +1,7 @@
 # Central do Grupo 17 em containers.
 #
 #   cd applications
-#   docker compose up -d --build              # broker, coletor, MLflow e API (o essencial da demo)
+#   docker compose up -d --build              # broker, coletor, MLflow, API e modelo de rota (o essencial)
 #   docker compose --profile sim up -d        # + simulador de postes P02..P10
 #   docker compose --profile airflow up -d --build   # + Airflow (pipeline de ML; ~3 GB na 1a vez)
 #   docker compose run --rm treinar           # treina o modelo uma vez, sem Airflow
@@ -24,6 +24,7 @@ x-app: &app
     MQTT_PORT: "1883"
     MLFLOW_TRACKING_URI: http://mlflow:5000
     API_URL: http://api:8000
+    DB_PATH: /app/backend/dados/central.db
     TZ: America/Recife
   depends_on:
     - mosquitto
@@ -35,7 +36,8 @@ services:
       - "1883:1883"
       - "9001:9001"
     volumes:
-      - ./broker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      # MOSQUITTO_CONF=mosquitto-ponte.conf liga a ponte com o HiveMQ (a placa sem regravar)
+      - ./broker/${MOSQUITTO_CONF:-mosquitto.conf}:/mosquitto/config/mosquitto.conf:ro
     restart: unless-stopped
 
   coletor:
@@ -43,7 +45,6 @@ services:
     command: python backend/coletor.py
     environment:
       <<: *app-env
-      DB_PATH: /app/backend/dados/central.db
       TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
     restart: unless-stopped
@@ -71,6 +72,13 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
+    restart: unless-stopped
+
+  rota:
+    <<: *app
+    # Modelo de rota da cascata em Y: responde .../evento com .../rota e treina de novo sozinho
+    # quando chegam travessias novas no banco do coletor
+    command: python ml/src/prever_rota.py servir
     restart: unless-stopped
 
   simulador:
@@ -110,6 +118,7 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/g17/ml/dags
       G17_ML_DIR: /opt/airflow/g17/ml
+      DB_PATH: /opt/airflow/g17/backend/dados/central.db
       MQTT_HOST: mosquitto
       MLFLOW_TRACKING_URI: http://mlflow:5000
       API_URL: http://api:8000

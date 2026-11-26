@@ -1,0 +1,51 @@
+{
+  "treinado_em": "2026-11-26T15:19:37",
+  "modelo": "regressao_logistica",
+  "parametros": {
+    "C": 1.0
+  },
+  "features": [
+    "dist_s1",
+    "hora_sin",
+    "hora_cos"
+  ],
+  "classes": [
+    "direita",
+    "esquerda"
+  ],
+  "linhas": 828,
+  "origens": {
+    "sintetico": 800,
+    "simulador": 28
+  },
+  "metricas": {
+    "maioria": {
+      "cv_acuracia_media": 0.525,
+      "cv_acuracia_desvio": 0.0015,
+      "teste_acuracia": 0.5411,
+      "teste_f1_macro": 0.3511,
+      "teste_log_loss": 6.3405
+    },
+    "regra_lado": {
+      "cv_acuracia_media": 0.8567,
+      "cv_acuracia_desvio": 0.0254,
+      "teste_acuracia": 0.8164,
+      "teste_f1_macro": 0.8163,
+      "teste_log_loss": 2.5362
+    },
+    "regressao_logistica": {
+      "cv_acuracia_media": 0.8519,
+      "cv_acuracia_desvio": 0.024,
+      "teste_acuracia": 0.8164,
+      "teste_f1_macro": 0.8163,
+      "teste_log_loss": 0.5062
+    },
+    "arvore_rasa": {
+      "cv_acuracia_media": 0.8519,
+      "cv_acuracia_desvio": 0.0315,
+      "teste_acuracia": 0.8164,
+      "teste_f1_macro": 0.8163,
+      "teste_log_loss": 0.5043
+    }
+  }
+}

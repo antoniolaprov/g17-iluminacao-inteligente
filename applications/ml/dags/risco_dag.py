@@ -2,6 +2,7 @@
 DAG do Airflow: pipeline mensal do risco de lâmpada apagada por bairro.
 
     preparar_dados -> treinar -> publicar_risco
+    treinar_rota (em paralelo)
 
 - preparar_dados: refaz a base cruzada a partir dos CSVs brutos da Emlurb. Os brutos não
   estão no Git; se não existirem, a tarefa só avisa e o pipeline segue com a base
@@ -9,6 +10,9 @@ DAG do Airflow: pipeline mensal do risco de lâmpada apagada por bairro.
 - treinar: compara os modelos, registra tudo no MLflow e atualiza models/ (a API recarrega
   sozinha quando esses arquivos mudam).
 - publicar_risco: pega o risco de cada poste na API e publica risco + comando no MQTT.
+- treinar_rota: treina o modelo de rota da cascata em Y com as travessias que o coletor gravou
+  (placa e simulador) mais as sintéticas, e registra no MLflow (experimento rota_pedestre). O
+  serviço de rota passa a usar o modelo novo sozinho.
 
 Mensal porque a Central 156 publica os chamados por mês. Sem catchup: rodar meses
 passados não faz sentido, os dados já são o histórico inteiro.
@@ -53,6 +57,11 @@ with DAG(
     publicar_risco = BashOperator(
         task_id="publicar_risco",
         bash_command=f'{PYTHON} "{PASTA_ML}/src/publicar_risco.py"',
+    )
+
+    treinar_rota = BashOperator(
+        task_id="treinar_rota",
+        bash_command=f'{PYTHON} "{PASTA_ML}/src/prever_rota.py" treinar',
     )
 
     preparar_dados >> treinar >> publicar_risco
