@@ -23,6 +23,7 @@ Uso:
 
 import json
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -31,6 +32,7 @@ import mlflow
 import mlflow.sklearn
 import numpy as np
 import pandas as pd
+from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import (
     GradientBoostingRegressor,
     HistGradientBoostingRegressor,
@@ -40,7 +42,10 @@ from sklearn.linear_model import PoissonRegressor
 from sklearn.metrics import r2_score
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import FunctionTransformer, StandardScaler
+from sklearn.preprocessing import FunctionTransformer, OneHotEncoder, StandardScaler
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from preparar_dados import codificar_mes_ciclico, nomes_mes_ciclico  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 BASE = RAIZ / "data" / "processed" / "risco_bairro_mes.csv"
@@ -50,11 +55,13 @@ MODELO_REGISTRADO = "risco_bairro"
 ALVO = "chamados_mes_seguinte"
 SEMENTE = 17
 
-FEATURES = [
+FEATURES_CONTINUAS = [
     "chamados_lampada_apagada", "chamados_lag1", "chamados_lag2", "chamados_lag3", "media_movel_3m",
-    "total_postes", "postes_sem_id", "potencia_media_w", "pct_led", "rpa",
-    "mes_do_ano", "taxa_1000_postes",
+    "total_postes", "postes_sem_id", "potencia_media_w", "pct_led", "taxa_1000_postes",
 ]
+FEATURE_CATEGORICA = ["rpa"]
+FEATURE_CICLICA = ["mes_do_ano"]
+FEATURES = [*FEATURES_CONTINUAS, *FEATURE_CATEGORICA, *FEATURE_CICLICA]
 
 # Faixas do contrato com o poste (MACHINE_LEARNING.md secao 5.3)
 def classe_de(risco: float) -> str:
@@ -134,27 +141,53 @@ class Regra:
         return X[self.coluna].to_numpy(dtype=float)
 
 
+def criar_preprocessador(escalar_continuas: bool) -> ColumnTransformer:
+    """Preprocessa continuas (log1p + escala opcional), rpa (One-Hot) e mes_do_ano (sin/cos)."""
+    cont = (
+        make_pipeline(FunctionTransformer(np.log1p, feature_names_out="one-to-one"), StandardScaler())
+        if escalar_continuas
+        else "passthrough"
+    )
+    mes = FunctionTransformer(codificar_mes_ciclico, feature_names_out=nomes_mes_ciclico)
+    if escalar_continuas:
+        mes = make_pipeline(mes, StandardScaler())
+    return ColumnTransformer([
+        ("cont", cont, FEATURES_CONTINUAS),
+        ("rpa", OneHotEncoder(handle_unknown="ignore", sparse_output=False), FEATURE_CATEGORICA),
+        ("mes", mes, FEATURE_CICLICA),
+    ])
+
+
 def candidatos() -> dict:
     return {
         "regra_persistencia": (Regra("chamados_lampada_apagada"), {"tipo": "regra", "coluna": "chamados_lampada_apagada"}),
         "regra_media_movel_3m": (Regra("media_movel_3m"), {"tipo": "regra", "coluna": "media_movel_3m"}),
         "random_forest": (
-            RandomForestRegressor(n_estimators=300, min_samples_leaf=5, random_state=SEMENTE, n_jobs=-1),
-            {"n_estimators": 300, "min_samples_leaf": 5},
+            make_pipeline(
+                criar_preprocessador(escalar_continuas=False),
+                RandomForestRegressor(n_estimators=300, min_samples_leaf=5, random_state=SEMENTE, n_jobs=-1),
+            ),
+            {"encoding": "one-hot (rpa) + sin/cos (mes)", "n_estimators": 300, "min_samples_leaf": 5},
         ),
         "gradient_boosting": (
-            GradientBoostingRegressor(n_estimators=300, learning_rate=0.05, max_depth=3, random_state=SEMENTE),
-            {"n_estimators": 300, "learning_rate": 0.05, "max_depth": 3},
+            make_pipeline(
+                criar_preprocessador(escalar_continuas=False),
+                GradientBoostingRegressor(n_estimators=300, learning_rate=0.05, max_depth=3, random_state=SEMENTE),
+            ),
+            {"encoding": "one-hot (rpa) + sin/cos (mes)", "n_estimators": 300, "learning_rate": 0.05, "max_depth": 3},
         ),
         "hist_gb_poisson": (
-            HistGradientBoostingRegressor(loss="poisson", max_iter=300, learning_rate=0.05, random_state=SEMENTE),
-            {"loss": "poisson", "max_iter": 300, "learning_rate": 0.05},
+            make_pipeline(
+                criar_preprocessador(escalar_continuas=False),
+                HistGradientBoostingRegressor(loss="poisson", max_iter=300, learning_rate=0.05, random_state=SEMENTE),
+            ),
+            {"encoding": "one-hot (rpa) + sin/cos (mes)", "loss": "poisson", "max_iter": 300, "learning_rate": 0.05},
         ),
-        # GLM de Poisson: modelo feito para contagens. O log1p nas features deixa a relacao
-        # "chamados do passado -> chamados do mes seguinte" proporcional, como e na pratica.
+        # GLM de Poisson: modelo feito para contagens. O log1p apenas nas continuas deixa a relacao
+        # "chamados do passado -> chamados do mes seguinte" proporcional, com rpa em One-Hot e mes ciclico.
         "poisson_glm": (
-            make_pipeline(FunctionTransformer(np.log1p), StandardScaler(), PoissonRegressor(alpha=1e-3, max_iter=3000)),
-            {"transformacao": "log1p + padronizacao", "alpha": 1e-3},
+            make_pipeline(criar_preprocessador(escalar_continuas=True), PoissonRegressor(alpha=1e-3, max_iter=3000)),
+            {"transformacao": "log1p+padronizacao (continuas) | one-hot (rpa) | sin/cos (mes)", "alpha": 1e-3},
         ),
     }
 

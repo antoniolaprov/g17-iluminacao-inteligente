@@ -287,7 +287,8 @@ Como rodar tudo: [`applications/README.md`](../README.md).
       `config.json`)
 - [ ] Escolher um `id_ponto` real para o `P01` no `config.json` (precisa dos dados brutos)
 - [x] `ML-01`: validação cruzada temporal (`TimeSeriesSplit` por `mes_do_alvo`), métricas de ajuste vs. validação (`gap_val_ajuste_mae`) e $R^2$ no `treinar.py`
+- [x] `ML-13`: `ColumnTransformer` no `treinar.py` (`log1p`+escala só nas contínuas, `OneHotEncoder` em `rpa`, `sin`/`cos` em `mes_do_ano`)
 - [ ] **Demais pendências da auditoria contra a rubrica oficial (ver [`docs/AUDITORIA_ML.md`](../../docs/AUDITORIA_ML.md)):**
-      otimização de hiperparâmetros e critério unificado no MLflow (`ML-02`), encoding de `rpa`/`mes_do_ano` (`ML-13`),
+      otimização de hiperparâmetros e critério unificado no MLflow (`ML-02`),
       baseline clássico + artefatos no MLflow (`ML-03`), gráficos de resíduos/Real×Previsto/R² (`ML-04`) e
       consumo de dados vivos do embarcado no SQLite (`ML-05`).

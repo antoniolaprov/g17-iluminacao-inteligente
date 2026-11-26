@@ -11,7 +11,7 @@
 | Entregável (CC) | Status | Diagnóstico direto |
 |---|---|---|
 | **1. Bootstrap dataset + MQTT + persistência** | ✅ **Pronto** | Dados Emlurb preparados (`data/processed/`), ESP32/simulador via MQTT e `coletor.py` gravando em SQLite. |
-| **2. Pipeline Airflow + EDA + preparação** | 🟡 **Revisar** | DAG `g17_risco_bairro` existe, mas `preparar_dados` pula se `data/raw/` não estiver presente; `01_exploracao.ipynb` já lê o CSV limpo e não mostra limpeza/nulos/encoding; `treinar.py` ainda aplica `log1p` em `rpa` (categórico) e `mes_do_ano` (cíclico) sem encoding próprio (`ML-13`). |
+| **2. Pipeline Airflow + EDA + preparação** | 🟡 **Revisar** | DAG `g17_risco_bairro` existe, mas `preparar_dados` pula se `data/raw/` não estiver presente; `01_exploracao.ipynb` já lê o CSV limpo e não mostra limpeza/nulos/encoding. O encoding do pipeline no `treinar.py` foi corrigido em `ML-13`. |
 | **3. Modelo baseline + MLflow (params, métricas, artefatos)** | 🟡 **Revisar** | Há 2 baselines heurísticos (`regra_persistencia`, `regra_media_movel_3m`), mas falta um **baseline clássico de ML** (ex.: `LinearRegression` ou `DecisionTreeRegressor`), e as runs de comparação não logam artefatos no MLflow. |
 | **4. Comparação de ≥ 3 modelos + visualizações + análise crítica** | 🟡 **Revisar** | Há 4 modelos de ML (`poisson_glm`, `random_forest`, `gradient_boosting`, `hist_gb_poisson`), mas `02_modelo.ipynb` **não tem gráficos de resíduos**, **dispersão Real × Previsto por ponto** nem **R²**. |
 | **5. Otimização de hiperparâmetros (Grid/Random/Optuna) + MLflow** | ❌ **Faltando** | Todos os hiperparâmetros em `treinar.py` foram fixados manualmente (`alpha=1e-3`, `n_estimators=300` etc.). Não existe busca automatizada nem registro de tuning no MLflow. |
@@ -42,15 +42,16 @@
     3. Guardar também o erro de treino por fold na CV (para curva de aprendizado temporal) e registrar no MLflow todas as combinações avaliadas (nested runs ou tag `fase=tuning`).
   - **Pronto quando:** a UI do MLflow mostrar os experimentos de busca de hiperparâmetros, os melhores parâmetros antes do retreino final e não houver contradição entre métrica de CV e modelo escolhido.
 
-- [ ] **ML-13 · Corrigir encoding de variáveis categóricas e cíclicas (`rpa` e `mes_do_ano` no `treinar.py`)** *(descoberta na revisão técnica)*
-  - **Problema atual:** `poisson_glm` aplica `FunctionTransformer(np.log1p)` indistintamente sobre **todas as 12 features** — tratando `rpa` (código administrativo de 1 a 6, **categórico**) e `mes_do_ano` (1 a 12, **cíclico**) como grandezas contínuas em escala logarítmica.
-  - **O que fazer:**
-    1. Substituir o pré-processamento uniforme por um `ColumnTransformer` dentro do pipeline `sklearn`:
-       - **One-Hot Encoding** (`OneHotEncoder(handle_unknown="ignore")`) para `rpa`;
-       - Encoding **cíclico (`sin`/`cos`)** ou dummies para `mes_do_ano` (ou justificar se mantém sazonalidade explícita);
-       - `log1p` + `StandardScaler` apenas nas features numéricas contínuas de contagem/parque.
-    2. Garantir que o `ColumnTransformer` fique encapsulado no `Pipeline` salvo em `modelo_risco.joblib`, mantendo o endpoint `POST /prever` da `api.py` funcionando sem quebrar contrato.
-  - **Pronto quando:** `treinar.py` rodar com o `ColumnTransformer`, `POST /prever` continuar passando e a seção de encoding no notebook/relatório refletir o pipeline real.
+- [x] **ML-13 · Corrigir encoding de variáveis categóricas e cíclicas (`rpa` e `mes_do_ano` no `treinar.py`)** *(concluído em 26/11)*
+  - **O que foi feito:**
+    1. Adicionados `codificar_mes_ciclico()` e `nomes_mes_ciclico()` em `preparar_dados.py` (módulo importado por `treinar.py` e `api.py`, evitando falha de desserialização `__main__` no `joblib`/`skops`).
+    2. Substituído o pré-processamento uniforme em `treinar.py` por `criar_preprocessador()` (`ColumnTransformer`): `log1p` + `StandardScaler` apenas nas 10 contínuas (no `poisson_glm`), `OneHotEncoder(handle_unknown="ignore")` em `rpa` e `sin`/`cos` em `mes_do_ano` em todos os modelos de ML.
+    3. Atualizada a célula 8 de `02_modelo.ipynb` para usar `modelo[:-1].get_feature_names_out()` (18 colunas transformadas).
+  - **Evidência e análise crítica (antes vs. depois no `poisson_glm`):**
+    - `cv_mae_mean` **melhorou** (`8.627` → **`8.451 ± 1.367`**) e o modelo continua vencendo as regras em todos os splits (`teste_mae = 7.975`, `teste_r2 = 0.897`, `teste_precisao_top10 = 0.796`).
+    - **Trade-off honesto:** com `alpha=0.001` (quase sem regularização), `sin`/`cos` reduziu o erro no ajuste (`7.761` → `7.455`) mas elevou `val_mae` (`8.299` → `8.777`, ainda abaixo de `8.927` da média móvel); aumentar `alpha` na `ML-02` tende a corrigir esse pequeno sobreajuste sazonal.
+    - Validado `POST /prever` (`api.py`) e `mlflow.sklearn.load_model("models:/risco_bairro/2")` sem erros.
+    - *Pendência ligada à `ML-04`:* reexecutar `02_modelo.ipynb` com Jupyter para atualizar as figuras/tabelas embutidas.
 
 - [ ] **ML-03 · Baseline clássico de ML + artefatos nas runs do MLflow (`treinar.py`)**
   - **Problema atual:** existem baselines heurísticos (`regra_persistencia`, `regra_media_movel_3m`), mas nenhum baseline linear/árvore simples explícito de ML; além disso, as runs de comparação não logam artefatos (só a run `producao_*` loga o modelo).
