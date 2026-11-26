@@ -223,7 +223,7 @@ se os dados mudarem. Principais achados (além do que já está nas seções aci
 
 ## 7. Modelo treinado (atualizado em 26/11)
 
-`src/treinar.py` aplica pré-processamento por tipo (`log1p` + padronização só nas contínuas, `OneHotEncoder` em `rpa` e `sin`/`cos` em `mes_do_ano`), faz tuning via `TimeSeriesSplit(n_splits=5)` com nested runs no **MLflow** (experimento `risco_bairro`), compara os 4 modelos otimizados contra as 2 regras simples e registra o escolhido no Model Registry (`risco_bairro`).
+`src/treinar.py` aplica pré-processamento por tipo (`log1p` + padronização só nas contínuas, `OneHotEncoder` em `rpa` e `sin`/`cos` em `mes_do_ano`), faz tuning via `TimeSeriesSplit(n_splits=5)` com nested runs no **MLflow** (experimento `risco_bairro`), compara os modelos otimizados contra o baseline linear clássico (`baseline_linear`) e as 2 regras simples, registra artefatos (modelos, pesos, resíduos e gráficos) em todas as runs e registra o escolhido no Model Registry (`risco_bairro`).
 
 **Como escolhe, sem olhar o teste:** os hiperparâmetros de cada modelo são otimizados por `TimeSeriesSplit` dentro do treino; em seguida, o vencedor é escolhido pelo menor MAE na validação recente (os últimos 12 meses de alvo do treino, 2024). O teste (alvos de 2025) só é medido para o relatório. Depois, o escolhido é retreinado com tudo e prevê o mês seguinte ao último dado (2025-12).
 
@@ -231,6 +231,7 @@ se os dados mudarem. Principais achados (além do que já está nas seções aci
 |---|---|---|---|---|---|---|---|
 | **`poisson_glm`** (`alpha=5.0`, escolhido) | 7,61 | **8,67** | 8,38 ± 1,61 | 8,07 | 12,63 | 0,893 | 0,80 |
 | regra `media_movel_3m` | 9,53 | 8,93 | 9,42 ± 2,16 | 8,66 | 13,65 | 0,875 | 0,75 |
+| `baseline_linear` (`LinearRegression`) | 7,74 | 9,14 | 8,65 ± 1,34 | 8,27 | 12,30 | 0,899 | **0,81** |
 | `random_forest` (`depth=8, leaf=3`) | 5,07 | 9,33 | **8,23** ± 1,69 | **7,83** | **12,15** | **0,901** | 0,80 |
 | `hist_gb_poisson` (`depth=5, lr=0.03`) | 5,15 | 9,51 | 8,30 ± 1,64 | 7,89 | 12,23 | 0,900 | **0,81** |
 | regra persistência | 8,87 | 9,55 | 9,22 ± 1,93 | 9,21 | 13,85 | 0,872 | 0,81 |
@@ -280,6 +281,7 @@ Como rodar tudo: [`applications/README.md`](../README.md).
 - [x] `ML-01`: validação cruzada temporal (`TimeSeriesSplit` por `mes_do_alvo`), métricas de ajuste vs. validação (`gap_val_ajuste_mae`) e $R^2$ no `treinar.py`
 - [x] `ML-13`: `ColumnTransformer` no `treinar.py` (`log1p`+escala só nas contínuas, `OneHotEncoder` em `rpa`, `sin`/`cos` em `mes_do_ano`)
 - [x] `ML-02`: Grid Search via `TimeSeriesSplit` com nested runs (`fase=tuning`) no MLflow e histórico por fold em `metadados.json`
+- [x] `ML-03`: baseline clássico (`baseline_linear` com `LinearRegression`) + artefatos (modelos, pesos, CSV de resíduos e PNGs) nas runs do MLflow
 - [ ] **Demais pendências da auditoria contra a rubrica oficial (ver [`docs/AUDITORIA_ML.md`](../../docs/AUDITORIA_ML.md)):**
-      baseline clássico + artefatos no MLflow (`ML-03`), gráficos de resíduos/Real×Previsto/R² (`ML-04`) e
+      gráficos de resíduos/Real×Previsto/R² (`ML-04`) e
       consumo de dados vivos do embarcado no SQLite (`ML-05`).

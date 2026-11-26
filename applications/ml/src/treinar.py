@@ -24,6 +24,7 @@ Uso:
 import json
 import os
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -39,7 +40,7 @@ from sklearn.ensemble import (
     HistGradientBoostingRegressor,
     RandomForestRegressor,
 )
-from sklearn.linear_model import PoissonRegressor
+from sklearn.linear_model import LinearRegression, PoissonRegressor
 from sklearn.metrics import r2_score
 from sklearn.model_selection import ParameterGrid, TimeSeriesSplit
 from sklearn.pipeline import make_pipeline
@@ -190,13 +191,14 @@ class Regra:
         return self
 
 
-def criar_preprocessador(escalar_continuas: bool) -> ColumnTransformer:
-    """Preprocessa continuas (log1p + escala opcional), rpa (One-Hot) e mes_do_ano (sin/cos)."""
-    cont = (
-        make_pipeline(FunctionTransformer(np.log1p, feature_names_out="one-to-one"), StandardScaler())
-        if escalar_continuas
-        else "passthrough"
-    )
+def criar_preprocessador(escalar_continuas: bool, aplicar_log_continuas: bool = True) -> ColumnTransformer:
+    """Preprocessa continuas (log1p e escala opcionais), rpa (One-Hot) e mes_do_ano (sin/cos)."""
+    if escalar_continuas and aplicar_log_continuas:
+        cont = make_pipeline(FunctionTransformer(np.log1p, feature_names_out="one-to-one"), StandardScaler())
+    elif escalar_continuas:
+        cont = StandardScaler()
+    else:
+        cont = "passthrough"
     mes = FunctionTransformer(codificar_mes_ciclico, feature_names_out=nomes_mes_ciclico)
     if escalar_continuas:
         mes = make_pipeline(mes, StandardScaler())
@@ -211,6 +213,10 @@ def candidatos() -> dict:
     return {
         "regra_persistencia": (Regra("chamados_lampada_apagada"), {"tipo": "regra", "coluna": "chamados_lampada_apagada"}),
         "regra_media_movel_3m": (Regra("media_movel_3m"), {"tipo": "regra", "coluna": "media_movel_3m"}),
+        "baseline_linear": (
+            make_pipeline(criar_preprocessador(escalar_continuas=True, aplicar_log_continuas=False), LinearRegression()),
+            {"tipo": "baseline_ml", "transformacao": "padronizacao (continuas) | one-hot (rpa) | sin/cos (mes)"},
+        ),
         "random_forest": (
             make_pipeline(
                 criar_preprocessador(escalar_continuas=False),
@@ -281,14 +287,16 @@ def construir_modelo(nome: str, params_limpos: dict | None = None):
     return modelo.set_params(**validos) if validos else modelo
 
 
-def registrar_modelo(modelo, exemplo: pd.DataFrame) -> None:
-    """Loga o modelo no MLflow e registra no Model Registry.
+def registrar_modelo(modelo, exemplo: pd.DataFrame, registrar_no_registry: bool = True) -> None:
+    """Loga o modelo no MLflow e, opcionalmente, registra no Model Registry.
 
     O MLflow 3 salva modelos sklearn com skops, que recusa tipos internos das arvores
     (ex.: sklearn.tree._tree.Tree) a menos que sejam declarados confiaveis. Aqui o modelo
     acabou de ser treinado neste mesmo processo, entao os tipos que ele usa sao confiaveis.
     """
-    argumentos = {"input_example": exemplo, "registered_model_name": MODELO_REGISTRADO}
+    argumentos = {"input_example": exemplo}
+    if registrar_no_registry:
+        argumentos["registered_model_name"] = MODELO_REGISTRADO
     try:
         import skops.io as sio
         argumentos["skops_trusted_types"] = sio.get_untrusted_types(data=sio.dumps(modelo))
@@ -299,6 +307,88 @@ def registrar_modelo(modelo, exemplo: pd.DataFrame) -> None:
     except TypeError:  # MLflow 2.x usa artifact_path no lugar de name e nao tem skops_trusted_types
         argumentos.pop("skops_trusted_types", None)
         mlflow.sklearn.log_model(modelo, artifact_path="modelo", **argumentos)
+
+
+def extrair_pesos_modelo(modelo) -> dict | None:
+    """Extrai coeficientes ou importancia de variaveis do estimador final para auditoria."""
+    if not hasattr(modelo, "named_steps"):
+        return None
+    estimador = modelo[-1]
+    nomes = [n.split("__", 1)[-1] for n in modelo[:-1].get_feature_names_out()]
+    if hasattr(estimador, "coef_"):
+        valores = estimador.coef_
+    elif hasattr(estimador, "feature_importances_"):
+        valores = estimador.feature_importances_
+    else:
+        return None
+    pares = sorted(zip(nomes, valores), key=lambda x: abs(float(x[1])), reverse=True)
+    return {k: round(float(v), 5) for k, v in pares}
+
+
+def logar_artefatos_comparacao(
+    nome: str, modelo, validacao: pd.DataFrame, prev_val: np.ndarray, folds: list[dict]
+) -> None:
+    """Registra artefatos (folds, residuos, pesos e graficos quando matplotlib existir) na run do MLflow."""
+    mlflow.log_dict(folds, "cv_folds.json")
+    pesos = extrair_pesos_modelo(modelo)
+    if pesos is not None:
+        mlflow.log_dict(pesos, "pesos_features.json")
+    if isinstance(modelo, Regra):
+        mlflow.log_dict({"regra": modelo.coluna}, "modelo_regra.json")
+    else:
+        registrar_modelo(modelo, validacao[FEATURES].head(5), registrar_no_registry=False)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        pasta = Path(tmp)
+        tabela_val = validacao[["bairro_norm", "mes_do_alvo", ALVO]].copy()
+        tabela_val["previsto"] = np.round(prev_val, 3)
+        tabela_val["residuo"] = np.round(tabela_val[ALVO] - tabela_val["previsto"], 3)
+        csv_res = pasta / "residuos_validacao.csv"
+        tabela_val.to_csv(csv_res, index=False)
+        mlflow.log_artifact(str(csv_res))
+
+        try:
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+        except ImportError:
+            return
+
+        fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.0))
+        real = validacao[ALVO].to_numpy()
+        residuo = real - prev_val
+        axes[0].scatter(prev_val, residuo, alpha=0.35, s=14, color="#2E6F8E")
+        axes[0].axhline(0, color="#C1502E", linestyle="--", linewidth=1.2)
+        axes[0].set_title(f"{nome}: Residuos na validacao (2024)")
+        axes[0].set_xlabel("Previsto")
+        axes[0].set_ylabel("Residuo (real - previsto)")
+
+        limite = max(float(real.max()), float(prev_val.max())) * 1.05
+        axes[1].scatter(real, prev_val, alpha=0.35, s=14, color="#2E6F8E")
+        axes[1].plot([0, limite], [0, limite], color="#C1502E", linestyle="--", linewidth=1.2)
+        axes[1].set_title(f"{nome}: Real x Previsto (validacao)")
+        axes[1].set_xlabel("Real")
+        axes[1].set_ylabel("Previsto")
+        plt.tight_layout()
+        img_res = pasta / "residuos_validacao.png"
+        fig.savefig(img_res, dpi=140)
+        plt.close(fig)
+        mlflow.log_artifact(str(img_res))
+
+        fig2, ax2 = plt.subplots(figsize=(6.5, 3.6))
+        xs = [f["fold"] for f in folds]
+        ax2.plot(xs, [f["cv_ajuste_mae"] for f in folds], marker="o", label="ajuste (treino)")
+        ax2.plot(xs, [f["cv_mae"] for f in folds], marker="s", label="validacao (fold)")
+        ax2.set_xticks(xs)
+        ax2.set_xlabel("Fold temporal (TimeSeriesSplit)")
+        ax2.set_ylabel("MAE")
+        ax2.set_title(f"{nome}: Curva temporal nos 5 folds")
+        ax2.legend(frameon=False)
+        plt.tight_layout()
+        img_cv = pasta / "curva_cv_folds.png"
+        fig2.savefig(img_cv, dpi=140)
+        plt.close(fig2)
+        mlflow.log_artifact(str(img_cv))
 
 
 def preparar_mlflow() -> None:
@@ -353,13 +443,19 @@ def main() -> None:
             })
 
             modelo.fit(ajuste[FEATURES], ajuste[ALVO])
-            metricas.update(medir(ajuste, modelo.predict(ajuste[FEATURES]), "ajuste"))
-            metricas.update(medir(validacao, modelo.predict(validacao[FEATURES]), "val"))
+            prev_ajuste = modelo.predict(ajuste[FEATURES])
+            prev_val = modelo.predict(validacao[FEATURES])
+            metricas.update(medir(ajuste, prev_ajuste, "ajuste"))
+            metricas.update(medir(validacao, prev_val, "val"))
             metricas["gap_val_ajuste_mae"] = metricas["val_mae"] - metricas["ajuste_mae"]
+            logar_artefatos_comparacao(nome, modelo, validacao, prev_val, folds)
+
             modelo.fit(treino[FEATURES], treino[ALVO])
             metricas.update(medir(teste, modelo.predict(teste[FEATURES]), "teste"))
             mlflow.log_metrics(metricas)
             mlflow.set_tag("fase", "comparacao")
+            tipo = "regra_heuristica" if nome.startswith("regra_") else "baseline_ml" if nome.startswith("baseline_") else "modelo_ml"
+            mlflow.set_tag("tipo_candidato", tipo)
 
             resultados[nome] = {**metricas, "run_id": run.info.run_id}
             folds_por_modelo[nome] = folds
@@ -425,11 +521,12 @@ def main() -> None:
         mlflow.log_params({"modelo": escolhido, "treinado_com": "treino+teste", **params})
         mlflow.set_tag("fase", "producao")
         mlflow.log_artifact(str(SAIDA / "risco_por_bairro.csv"))
+        mlflow.log_artifact(str(SAIDA / "metadados.json"))
         exemplo = df[FEATURES].head(5)
         if isinstance(modelo_final, Regra):
             mlflow.log_dict({"regra": modelo_final.coluna}, "modelo_regra.json")
         else:
-            registrar_modelo(modelo_final, exemplo)
+            registrar_modelo(modelo_final, exemplo, registrar_no_registry=True)
 
     print(f"\nRisco previsto para {metadados['mes_previsto']} salvo em {SAIDA / 'risco_por_bairro.csv'}")
     print(risco.head(10).to_string(index=False))

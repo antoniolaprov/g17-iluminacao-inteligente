@@ -12,7 +12,7 @@
 |---|---|---|
 | **1. Bootstrap dataset + MQTT + persistência** | ✅ **Pronto** | Dados Emlurb preparados (`data/processed/`), ESP32/simulador via MQTT e `coletor.py` gravando em SQLite. |
 | **2. Pipeline Airflow + EDA + preparação** | 🟡 **Revisar** | DAG `g17_risco_bairro` existe, mas `preparar_dados` pula se `data/raw/` não estiver presente; `01_exploracao.ipynb` já lê o CSV limpo e não mostra limpeza/nulos/encoding. O encoding do pipeline no `treinar.py` foi corrigido em `ML-13`. |
-| **3. Modelo baseline + MLflow (params, métricas, artefatos)** | 🟡 **Revisar** | Há 2 baselines heurísticos (`regra_persistencia`, `regra_media_movel_3m`), mas falta um **baseline clássico de ML** (ex.: `LinearRegression` ou `DecisionTreeRegressor`), e as runs de comparação não logam artefatos no MLflow. |
+| **3. Modelo baseline + MLflow (params, métricas, artefatos)** | ✅ **Concluído (`ML-03`)** | Além dos 2 baselines heurísticos, `treinar.py` inclui o baseline clássico `baseline_linear` (`LinearRegression`, provando necessidade de Poisson ao prever contagens negativas `-1.71`) e registra artefatos (modelos, pesos, CSV de resíduos e gráficos PNG) em todas as runs do MLflow. |
 | **4. Comparação de ≥ 3 modelos + visualizações + análise crítica** | 🟡 **Revisar** | Há 4 modelos de ML (`poisson_glm`, `random_forest`, `gradient_boosting`, `hist_gb_poisson`), mas `02_modelo.ipynb` **não tem gráficos de resíduos**, **dispersão Real × Previsto por ponto** nem **R²**. |
 | **5. Otimização de hiperparâmetros (Grid/Random/Optuna) + MLflow** | ✅ **Concluído (`ML-02`)** | `treinar.py` executa Grid Search via `TimeSeriesSplit(n_splits=5)` em todos os modelos treináveis (33 combinações logadas como nested runs `fase=tuning` no MLflow) e grava o histórico por fold (`cv_folds`) em `metadados.json`. |
 | **6. Validação cruzada + estabilidade + overfitting/underfitting** | ✅ **Concluído (`ML-01`)** | `treinar.py` agora executa `TimeSeriesSplit(n_splits=5)` agrupado por `mes_do_alvo` (média ± desvio padrão) e mede erro no ajuste, validação e teste + $R^2$, comprovando overfitting das árvores e estabilidade do `poisson_glm`. |
@@ -45,12 +45,11 @@
     - Validado `POST /prever` (`api.py`) e `mlflow.sklearn.load_model("models:/risco_bairro/2")` sem erros.
     - *Pendência ligada à `ML-04`:* reexecutar `02_modelo.ipynb` com Jupyter para atualizar as figuras/tabelas embutidas.
 
-- [ ] **ML-03 · Baseline clássico de ML + artefatos nas runs do MLflow (`treinar.py`)**
-  - **Problema atual:** existem baselines heurísticos (`regra_persistencia`, `regra_media_movel_3m`), mas nenhum baseline linear/árvore simples explícito de ML; além disso, as runs de comparação não logam artefatos (só a run `producao_*` loga o modelo).
-  - **O que fazer:**
-    1. Adicionar um modelo baseline clássico explícito (ex.: `LinearRegression` ou `DecisionTreeRegressor` rasa) na comparação e justificar seu papel no notebook/relatório.
-    2. Logar **artefatos** nas runs do MLflow (ex.: tabela comparativa, gráfico de resíduos e gráfico de importância/coeficientes de cada modelo avaliado).
-  - **Pronto quando:** todas as runs no MLflow tiverem parâmetros, métricas e artefatos associados.
+- [x] **ML-03 · Baseline clássico de ML + artefatos nas runs do MLflow (`treinar.py`)** *(concluído em 26/11)*
+  - **O que foi feito:**
+    1. Adicionado `baseline_linear` (`LinearRegression` sobre `ColumnTransformer` sem `log1p`) com tag `tipo_candidato=baseline_ml`: `ajuste_mae = 7.743`, `val_mae = 9.135`, `cv_mae = 8.652 ± 1.337`, `teste_mae = 8.271`, `teste_r2 = 0.899`. Como previsto para regressão linear sem restrição de domínio, chegou a prever valores negativos (`-1.71`) em bairros pequenos — justificando o uso do `poisson_glm`.
+    2. Adicionado `logar_artefatos_comparacao()` e `extrair_pesos_modelo()` registrando em **todas** as runs de comparação: modelo MLflow (ou `modelo_regra.json`), `cv_folds.json`, `pesos_features.json`, `residuos_validacao.csv` e (quando `matplotlib` está presente) os gráficos `residuos_validacao.png` e `curva_cv_folds.png`.
+  - **Evidência observada:** `MlflowClient().list_artifacts(...)` confirmou os 4–5 artefatos em todas as 7 runs de comparação e `api.saude()` / `api.prever()` seguiram funcionando sem erro.
 
 - [ ] **ML-04 · Visualizações de resíduos, Real × Previsto e R² (`02_modelo.ipynb` e `01_exploracao.ipynb`)**
   - **Problema atual:** `applications/ml/notebooks/02_modelo.ipynb` mostra barras de MAE, série agregada mensal, coeficientes do `poisson_glm` e contagem × taxa, mas **não possui gráficos de resíduos, dispersão Real × Previsto por bairro/mês nem R²**. Já `01_exploracao.ipynb` não documenta explicitamente a limpeza/normalização/tratamento de nulos feitos em `preparar_dados.py`.
