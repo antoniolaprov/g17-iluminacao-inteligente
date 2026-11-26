@@ -45,7 +45,8 @@ CAMPOS_CASCATA = {
     "dist_s2": "REAL", "presenca_s2": "INTEGER", "pct_base": "INTEGER", "pct_esq": "INTEGER",
     "pct_dir": "INTEGER", "rota": "TEXT", "rota_fonte": "TEXT",
 }
-CAMPOS_TRAVESSIA = ["id", "dist_s1", "previsto", "fonte", "real", "acertou", "duracao_ms", "uptime"]
+# "origem" só vem do simulador ("simulador"); o firmware não manda, então NULL = travessia real
+CAMPOS_TRAVESSIA = ["id", "dist_s1", "previsto", "fonte", "real", "acertou", "duracao_ms", "uptime", "origem"]
 
 ESQUEMA = """
 CREATE TABLE IF NOT EXISTS telemetria (
@@ -60,7 +61,7 @@ CREATE TABLE IF NOT EXISTS risco  (recebido_em TEXT NOT NULL, id TEXT NOT NULL, 
 CREATE TABLE IF NOT EXISTS alertas (recebido_em TEXT NOT NULL, id TEXT NOT NULL, tipo TEXT, mensagem TEXT);
 CREATE TABLE IF NOT EXISTS travessia (
     recebido_em TEXT NOT NULL, id TEXT NOT NULL, dist_s1 REAL, previsto TEXT, fonte TEXT,
-    real TEXT, acertou INTEGER, duracao_ms INTEGER, uptime INTEGER
+    real TEXT, acertou INTEGER, duracao_ms INTEGER, uptime INTEGER, origem TEXT
 );
 CREATE TABLE IF NOT EXISTS evento (recebido_em TEXT NOT NULL, id TEXT NOT NULL, payload TEXT);
 """
@@ -82,6 +83,8 @@ class Coletor:
         for coluna, tipo in CAMPOS_CASCATA.items():
             if coluna not in existentes:
                 self.db.execute(f"ALTER TABLE telemetria ADD COLUMN {coluna} {tipo}")
+        if "origem" not in {linha[1] for linha in self.db.execute("PRAGMA table_info(travessia)")}:
+            self.db.execute("ALTER TABLE travessia ADD COLUMN origem TEXT")
         self.db.commit()
         self.campos = CAMPOS + list(CAMPOS_CASCATA)
         self.trava = threading.Lock()
