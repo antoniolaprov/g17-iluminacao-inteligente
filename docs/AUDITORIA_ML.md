@@ -31,7 +31,7 @@
 > Situação das tasks abaixo depois desta atualização: **ML-05** feita (anomalias + pipeline do parque),
 > **ML-08** feita (`INICIAR_DEMO.bat` + DAGs), **ML-10** feita (`applications/tests/`, 32 testes),
 > **ML-11** feita (economia em `dimerizacao.py`, com extrapolação para o Recife). **ML-04** vale agora
-> para o notebook 03 (feito) e continua aberta para os notebooks 01/02 do modelo de bairro. **ML-06**
+> para o notebook 03 (feito) e foi concluída nos notebooks 01/02 em 27/11 (T17). **ML-06**
 > continua decisão do grupo. **ML-07** depende dos CSVs brutos (fora do Git). **ML-09** depende da placa.
 > **ML-12** (K-Means) não foi feita.
 
@@ -40,9 +40,9 @@
 | Entregável (CC) | Status | Diagnóstico direto |
 |---|---|---|
 | **1. Bootstrap dataset + MQTT + persistência** | ✅ **Pronto** | Dados Emlurb preparados (`data/processed/`), ESP32/simulador via MQTT e `coletor.py` gravando em SQLite. |
-| **2. Pipeline Airflow + EDA + preparação** | 🟡 **Revisar** | DAG `g17_risco_bairro` existe, mas `preparar_dados` pula se `data/raw/` não estiver presente; `01_exploracao.ipynb` já lê o CSV limpo e não mostra limpeza/nulos/encoding. O encoding do pipeline no `treinar.py` foi corrigido em `ML-13`. |
+| **2. Pipeline Airflow + EDA + preparação** | 🟡 **Revisar** | DAG `g17_risco_bairro` existe, mas `preparar_dados` pula se `data/raw/` não estiver presente; `01_exploracao.ipynb` documenta limpeza/nulos/encoding, distingue registros históricos dos brutos e confere os CSVs processados (T17, 27/11). O encoding do pipeline no `treinar.py` foi corrigido em `ML-13`. |
 | **3. Modelo baseline + MLflow (params, métricas, artefatos)** | ✅ **Concluído (`ML-03`)** | Além dos 2 baselines heurísticos, `treinar.py` inclui o baseline clássico `baseline_linear` (`LinearRegression`, provando necessidade de Poisson ao prever contagens negativas `-1.71`) e registra artefatos (modelos, pesos, CSV de resíduos e gráficos PNG) em todas as runs do MLflow. |
-| **4. Comparação de ≥ 3 modelos + visualizações + análise crítica** | 🟡 **Revisar** | Há 4 modelos de ML (`poisson_glm`, `random_forest`, `gradient_boosting`, `hist_gb_poisson`), mas `02_modelo.ipynb` **não tem gráficos de resíduos**, **dispersão Real × Previsto por ponto** nem **R²**. |
+| **4. Comparação de ≥ 3 modelos + visualizações + análise crítica** | ✅ **Concluído (T17)** | Notebook 02 reexecutado: sete candidatos, MAE/RMSE/R²/top 10%, resíduos, Real × Previsto por bairro/mês e estabilidade temporal; limitações documentadas. |
 | **5. Otimização de hiperparâmetros (Grid/Random/Optuna) + MLflow** | ✅ **Concluído (`ML-02`)** | `treinar.py` executa Grid Search via `TimeSeriesSplit(n_splits=5)` em todos os modelos treináveis (33 combinações logadas como nested runs `fase=tuning` no MLflow) e grava o histórico por fold (`cv_folds`) em `metadados.json`. |
 | **6. Validação cruzada + estabilidade + overfitting/underfitting** | ✅ **Concluído (`ML-01`)** | `treinar.py` agora executa `TimeSeriesSplit(n_splits=5)` agrupado por `mes_do_alvo` (média ± desvio padrão) e mede erro no ajuste, validação e teste + $R^2$, comprovando overfitting das árvores e estabilidade do `poisson_glm`. |
 | **7. Integração consumindo dados novos do embarcado/simulador** | ❌ **Faltando** | O pipeline atual prevê apenas com dados históricos da Emlurb. Embora `coletor.py` salve a telemetria viva do ESP32/simulador no SQLite (`central.db`), **nenhum modelo consome esses dados novos para gerar inferências automaticamente**. |
@@ -72,7 +72,7 @@
     - `cv_mae_mean` **melhorou** (`8.627` → **`8.451 ± 1.367`**) e o modelo continua vencendo as regras em todos os splits (`teste_mae = 7.975`, `teste_r2 = 0.897`, `teste_precisao_top10 = 0.796`).
     - **Trade-off honesto:** com `alpha=0.001` (quase sem regularização), `sin`/`cos` reduziu o erro no ajuste (`7.761` → `7.455`) mas elevou `val_mae` (`8.299` → `8.777`, ainda abaixo de `8.927` da média móvel); aumentar `alpha` na `ML-02` tende a corrigir esse pequeno sobreajuste sazonal.
     - Validado `POST /prever` (`api.py`) e `mlflow.sklearn.load_model("models:/risco_bairro/2")` sem erros.
-    - *Pendência ligada à `ML-04`:* reexecutar `02_modelo.ipynb` com Jupyter para atualizar as figuras/tabelas embutidas.
+    - *Concluído na T17 (27/11):* `02_modelo.ipynb` reexecutado com figuras e tabelas embutidas atualizadas.
 
 - [x] **ML-03 · Baseline clássico de ML + artefatos nas runs do MLflow (`treinar.py`)** *(concluído em 26/11)*
   - **O que foi feito:**
@@ -80,8 +80,13 @@
     2. Adicionado `logar_artefatos_comparacao()` e `extrair_pesos_modelo()` registrando em **todas** as runs de comparação: modelo MLflow (ou `modelo_regra.json`), `cv_folds.json`, `pesos_features.json`, `residuos_validacao.csv` e (quando `matplotlib` está presente) os gráficos `residuos_validacao.png` e `curva_cv_folds.png`.
   - **Evidência observada:** `MlflowClient().list_artifacts(...)` confirmou os 4–5 artefatos em todas as 7 runs de comparação e `api.saude()` / `api.prever()` seguiram funcionando sem erro.
 
-- [ ] **ML-04 · Visualizações de resíduos, Real × Previsto e R² (`02_modelo.ipynb` e `01_exploracao.ipynb`)**
-  - **Problema atual:** `applications/ml/notebooks/02_modelo.ipynb` mostra barras de MAE, série agregada mensal, coeficientes do `poisson_glm` e contagem × taxa, mas **não possui gráficos de resíduos, dispersão Real × Previsto por bairro/mês nem R²**. Já `01_exploracao.ipynb` não documenta explicitamente a limpeza/normalização/tratamento de nulos feitos em `preparar_dados.py`.
+- [x] **ML-04 · Visualizações de resíduos, Real × Previsto e R² (`02_modelo.ipynb` e `01_exploracao.ipynb`)** *(concluído em 27/11/2026, Luiz Claudio — T17)*
+  - **Resultado:** notebooks reexecutados com saídas salvas, sem erros. Limpeza/qualidade e exemplos no 01;
+    métricas dos sete candidatos, resíduos, Real × Previsto, comparação temporal e cinco folds históricos
+    no 02. Limitações do cadastro estático, da taxa e da sobreposição entre CV e validação explícitas.
+    A diferença máxima das métricas reproduzidas frente aos metadados arredondados foi inferior a 0,001.
+  - **Escopo abaixo:** critérios originais preservados como histórico da tarefa.
+  - **Problema original (resolvido):** `applications/ml/notebooks/02_modelo.ipynb` mostra barras de MAE, série agregada mensal, coeficientes do `poisson_glm` e contagem × taxa, mas **não possui gráficos de resíduos, dispersão Real × Previsto por bairro/mês nem R²**. Já `01_exploracao.ipynb` não documenta explicitamente a limpeza/normalização/tratamento de nulos feitos em `preparar_dados.py`.
   - **O que fazer:**
     1. Em `02_modelo.ipynb`, adicionar:
        - Gráfico de **resíduos** (`y_real - y_previsto` vs. `y_previsto`) e distribuição dos resíduos para os modelos comparados;

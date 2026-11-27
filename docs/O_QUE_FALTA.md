@@ -217,7 +217,14 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
 - Já está testado localmente (`::1`, ver `applications/README.md`).
 - **Pronto quando:** souberem se o teste local basta.
 
-### ⬜ T17 · Notebooks 01 e 02 do modelo de bairro (ML-04 da auditoria) 🤖
+### ✅ T17 · Notebooks 01 e 02 do modelo de bairro (ML-04 da auditoria) 🤖
+> **27/11/2026 (Luiz Claudio):** concluída. Os dois notebooks foram reexecutados com saídas salvas.
+> O 01 documenta limpeza, nulos, normalização e encoding, com exemplos e conferência dos CSVs
+> processados (4.136 linhas, 94 bairros, 7.098 postes sem ID); números históricos dos brutos estão
+> identificados como registros anteriores. O 02 reproduz as métricas de sete candidatos e inclui
+> MAE/RMSE/R²/top 10%, ajuste × validação × teste, cinco folds históricos, real × previsto e resíduos.
+> Ambos explicitam limitações do cadastro de 2025 e do ranking por taxa. Gráficos revisados visualmente;
+> notebooks validados sem células com erro e suíte de 32 testes aprovada.
 - **O que fazer:**
   - no notebook 02: gráficos de resíduos, real × previsto e R², e a tabela com MAE, RMSE, R² e precisão no top 10%;
   - no notebook 01: uma seção inicial resumindo a limpeza feita em `preparar_dados.py`;
