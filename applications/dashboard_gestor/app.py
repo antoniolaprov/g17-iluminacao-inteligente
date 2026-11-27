@@ -15,6 +15,7 @@ Uso:
 """
 
 import os
+from html import escape
 
 import altair as alt
 import folium
@@ -27,6 +28,11 @@ API_URL = os.getenv("API_URL", "http://localhost:8000").rstrip("/")
 CENTRO_RECIFE = (-8.06, -34.91)
 
 st.set_page_config(page_title="G17 · Gestão da iluminação pública", page_icon="💡", layout="wide")
+st.html("""<style>
+@media (max-width: 640px) {
+    h1 { font-size: 1.75rem !important; line-height: 1.25 !important; }
+}
+</style>""")
 
 
 @st.cache_data(ttl=20, show_spinner=False)
@@ -54,30 +60,57 @@ def cor_risco(prob: float | None, estado: str) -> str:
     return "#2a9d8f"
 
 
-st.title("💡 Gestão inteligente da iluminação pública: Recife")
+st.title("💡 Iluminação pública · Recife")
 st.caption("Parque simulado com degradação calibrada pelos chamados reais da Emlurb · "
            "manutenção preditiva (falha em 14 dias) · priorização CPTED · dimerização com piso de segurança")
 
 dados = api("/luminarias")
 if "_erro" in dados:
-    st.warning(f"Ainda sem dados do parque: {dados['_erro']}")
-    st.info("Suba o docker compose (serviços parque, ingestor e pipeline) e aguarde o primeiro ciclo do pipeline.")
+    st.warning("Não foi possível carregar o parque de luminárias.")
+    st.info("Aguarde alguns instantes e tente novamente. Se o problema continuar, confira se a central está ligada.")
+    if st.button("Tentar novamente"):
+        st.cache_data.clear()
+        st.rerun()
+    with st.expander("Detalhes para diagnóstico"):
+        st.code(str(dados["_erro"]), language=None)
     st.stop()
 
 df = pd.DataFrame(dados["luminarias"])
+if df.empty:
+    st.info("Nenhuma luminária disponível. Aguarde o primeiro ciclo de processamento e atualize a página.")
+    if st.button("Tentar novamente"):
+        st.cache_data.clear()
+        st.rerun()
+    st.stop()
+
 dim = api("/dimerizacao")
 metricas = api("/falha/metricas")
+limiar = metricas.get("limiar_f1", 0.1) if "_erro" not in metricas else 0.1
+
+
+def limpar_filtros():
+    for chave, valor in (("bairros", []), ("niveis", []), ("so_risco", 0.0)):
+        st.session_state[chave] = valor
+
 
 with st.sidebar:
-    st.header("Filtros")
-    bairros = st.multiselect("Bairro", sorted(df["bairro"].unique()))
-    niveis = st.multiselect("Nível CPTED", ["alta", "media", "baixa"])
-    so_risco = st.slider("P(falha em 14 dias) mínima", 0.0, 0.5, 0.0, 0.01)
-    k = st.number_input("Capacidade da equipe (inspeções por quinzena)", 5, 100,
-                        int(metricas.get("capacidade_k", 10)) if "_erro" not in metricas else 10)
-    if st.button("Atualizar agora"):
+    st.header("Filtrar luminárias")
+    bairros = st.multiselect("Bairros", sorted(df["bairro"].unique()), key="bairros")
+    niveis = st.multiselect("Prioridade de segurança (CPTED)", ["alta", "media", "baixa"], key="niveis",
+                            help="CPTED combina vulnerabilidade noturna, fluxo de pedestres e relevância da via.")
+    so_risco = st.slider("Chance mínima de falha em 14 dias", 0.0, 1.0, 0.0, 0.01, key="so_risco",
+                        format="%.2f", help="0,05 equivale a 5%. Luminárias apagadas permanecem no recorte para reparo.")
+    st.button("Limpar filtros", on_click=limpar_filtros, use_container_width=True)
+    st.divider()
+    k = st.number_input("Inspeções por quinzena", 5, 100,
+                        int(metricas.get("capacidade_k", 10)) if "_erro" not in metricas else 10,
+                        help="Define quantas luminárias entram na lista e aparecem maiores no mapa.")
+    if st.button("Atualizar dados", use_container_width=True):
         st.cache_data.clear()
-    st.caption(f"Data de referência: **{dados['data_ref']}** · API: {API_URL}")
+        st.rerun()
+    with st.expander("Conexão e referência"):
+        st.caption(f"Referência simulada: {dados['data_ref']}")
+        st.code(API_URL, language=None)
 
 filtro = df.copy()
 if bairros:
@@ -87,61 +120,89 @@ if niveis:
 if so_risco > 0:
     filtro = filtro[(filtro["prob_falha_14d"].fillna(0) >= so_risco) | (filtro["estado"] == "APAGADA")]
 
-c1, c2, c3, c4, c5, c6 = st.columns(6)
-c1.metric("Luminárias", len(df))
-c2.metric("Apagadas (reparo)", int((df["estado"] == "APAGADA").sum()))
-c3.metric("Cintilando", int((df["estado"] == "CINTILANDO").sum()))
-limiar = metricas.get("limiar_f1", 0.1) if "_erro" not in metricas else 0.1
-c4.metric("Risco alto (14 dias)", int((df["prob_falha_14d"].fillna(0) >= limiar).sum()), help=f"P ≥ limiar {limiar:.2f}")
-if "_erro" not in dim:
-    c5.metric("Economia da dimerização", f"{dim['economia']['economia_pct']:.1f}%", help="vs. tudo a 100% à noite")
-    c6.metric("Violações de segurança", f"{'✅' if dim['seguranca']['aprovado'] else '❌'} {dim['seguranca']['violacoes']}",
-              help=f"Teste automático da dimerização: {dim['seguranca']['comandos']} comandos conferidos contra os pisos "
-                   "CPTED e ABNT; critério de aceite = 0 violações")
+st.caption(f"Referência do cenário simulado: {dados['data_ref']} · "
+           f"Exibindo {len(filtro)} de {len(df)} luminárias · filtros na barra lateral")
+c1, c2, c3 = st.columns(3)
+c1.metric("Apagadas no recorte", int((filtro["estado"] == "APAGADA").sum()), help="Precisam de reparo corretivo.")
+c2.metric("Cintilando no recorte", int((filtro["estado"] == "CINTILANDO").sum()), help="Sinal de possível falha próxima.")
+c3.metric("Acima do limiar no recorte", int((filtro["prob_falha_14d"].fillna(0) >= limiar).sum()),
+          help=f"Chance de falha ≥ {limiar:.1%}. Limiar do modelo; as faixas de cor do mapa são fixas.")
 
-aba_mapa, aba_modelo, aba_cpted, aba_dim, aba_lum = st.tabs(
-    ["🗺️ Mapa e prioridades", "📈 Modelo de falha", "🛡️ Score CPTED", "🌙 Dimerização", "🔎 Luminária"])
+aba_mapa, aba_lum, aba_dim, aba_modelo, aba_cpted = st.tabs(
+    ["Operação", "Luminária", "Dimerização", "Modelo", "CPTED"])
 
 with aba_mapa:
-    esq, dir_ = st.columns([3, 2])
-    with esq:
-        mapa = folium.Map(location=CENTRO_RECIFE, zoom_start=13, tiles="OpenStreetMap")
+    st.subheader("Manutenção prioritária")
+    topo = filtro.sort_values("posicao").head(k)
+    if filtro.empty:
+        st.info("Nenhuma luminária corresponde aos filtros. Use ‘Limpar filtros’ na barra lateral para ver o parque.")
+    else:
+        st.caption(f"Até {k} inspeções no recorte atual. A posição # é do ranking geral do parque.")
+        st.dataframe(pd.DataFrame({
+            "# geral": topo["posicao"], "Luminária": topo["id_luminaria"], "Bairro": topo["bairro"], "Estado": topo["estado"],
+            "Chance em 14 dias": topo["prob_falha_14d"], "Segurança CPTED": topo["nivel_cpted"], "Prioridade": topo["prioridade"],
+        }), hide_index=True, use_container_width=True,
+            column_config={"Chance em 14 dias": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1),
+                           "Prioridade": st.column_config.NumberColumn(format="%.3f")})
+        st.caption("Prioridade combina 50% de risco relativo e 50% de segurança CPTED. "
+                   "Luminárias apagadas recebem risco relativo máximo. Sem previsão aparece como —.")
+
+    with st.expander("Alertas do recorte", expanded=False):
+        alertas = api("/alertas?limite=1000")
+        if "_erro" in alertas:
+            st.info("Não foi possível consultar os alertas. Tente atualizar os dados.")
+        else:
+            ids = set(filtro["id_luminaria"])
+            visiveis = [a for a in alertas["alertas"] if a["id_luminaria"] in ids]
+            if not visiveis:
+                st.caption("Nenhum alerta registrado para este recorte na data de referência.")
+            for a in visiveis[:20]:
+                icone = {"apagada": "⚫", "cintilando": "🟠", "risco_alto": "🔴"}.get(a["tipo"], "•")
+                st.write(f"{icone} {a['mensagem']}")
+            if len(visiveis) > 20:
+                st.caption(f"Exibindo 20 de {len(visiveis)} alertas. Refine os filtros para reduzir a lista.")
+
+    st.subheader("Mapa do recorte")
+    st.markdown("**Chance de falha em 14 dias**")
+    legenda = [("#2a9d8f", "Abaixo de 2%"), ("#e9c46a", "2% a menos de 5%"),
+               ("#f28c28", "5% a menos de 15%"), ("#d03b3b", "15% ou mais"),
+               ("#1f1f1f", "Apagada"), ("#9e9e9e", "Sem previsão")]
+    itens = "".join(f'<li style="display:flex;align-items:center;gap:6px">'
+                    f'<span aria-hidden="true" style="display:inline-block;width:12px;height:12px;'
+                    f'border:1px solid #888;border-radius:50%;background:{cor}"></span>{texto}</li>'
+                    for cor, texto in legenda)
+    st.markdown(f'<ul aria-label="Legenda do mapa" style="display:flex;flex-wrap:wrap;gap:8px 18px;'
+                f'list-style:none;padding:0">{itens}</ul>', unsafe_allow_html=True)
+    st.caption("Borda laranja = cintilando. Pontos maiores = luminárias da lista acima. "
+               "Toque em um ponto para ver os detalhes. Coordenadas aproximadas de um parque simulado.")
+    if not filtro.empty:
+        mapa = folium.Map(location=CENTRO_RECIFE, zoom_start=13, tiles="OpenStreetMap", scroll_wheel_zoom=False)
+        destaques = set(topo["id_luminaria"])
         for _, l in filtro.iterrows():
             prob = l["prob_falha_14d"]
-            texto = (f"<b>{l['id_luminaria']}</b> · {l['bairro']}<br>estado: {l['estado']}<br>"
-                     f"P(falha 14d): {'—' if pd.isna(prob) else f'{prob:.1%}'}<br>"
-                     f"CPTED: {l['nivel_cpted']} ({'sem dados' if pd.isna(l['score_cpted']) else f'{l['score_cpted']:.2f}'})<br>"
-                     f"prioridade: #{l['posicao']} · {l['potencia_w']:.0f} W · via {l['classe_via']}")
+            score = "sem dados" if pd.isna(l["score_cpted"]) else f"{l['score_cpted']:.2f}"
+            texto = (f"<b>{escape(str(l['id_luminaria']))}</b> · {escape(str(l['bairro']))}<br>"
+                     f"Estado: {escape(str(l['estado']))}<br>"
+                     f"Chance de falha em 14 dias: {'sem previsão' if pd.isna(prob) else f'{prob:.1%}'}<br>"
+                     f"Segurança CPTED: {escape(str(l['nivel_cpted']))} ({score})<br>"
+                     f"Posição geral: #{int(l['posicao'])} · {l['potencia_w']:.0f} W · via {escape(str(l['classe_via']))}")
             folium.CircleMarker(
-                location=(l["lat"], l["lon"]), radius=7 if l["posicao"] <= k else 4,
+                location=(l["lat"], l["lon"]), radius=8 if l["id_luminaria"] in destaques else 4,
                 color="#f28c28" if l["estado"] == "CINTILANDO" else cor_risco(prob, l["estado"]),
                 weight=3 if l["estado"] == "CINTILANDO" else 1, fill=True,
                 fill_color=cor_risco(prob, l["estado"]), fill_opacity=0.85,
-                popup=folium.Popup(texto, max_width=260), tooltip=l["id_luminaria"],
+                popup=folium.Popup(texto, max_width=260),
+                tooltip=f"{escape(str(l['id_luminaria']))} · {escape(str(l['estado']))}",
             ).add_to(mapa)
-        st_folium(mapa, height=560, use_container_width=True, returned_objects=[])
-        st.caption("Cor = risco de falha em 14 dias (verde < 2%, amarelo < 5%, laranja < 15%, vermelho ≥ 15%; "
-                   "preto = apagada). Borda laranja = cintilando. Pontos maiores = top-k da lista de manutenção. "
-                   "Coordenadas aproximadas (parque simulado).")
-    with dir_:
-        st.subheader(f"Lista de manutenção (top {k})")
-        topo = filtro.sort_values("posicao").head(k)
-        st.dataframe(pd.DataFrame({
-            "#": topo["posicao"], "luminária": topo["id_luminaria"], "bairro": topo["bairro"], "estado": topo["estado"],
-            "P(falha 14d)": topo["prob_falha_14d"], "CPTED": topo["nivel_cpted"], "prioridade": topo["prioridade"],
-        }), hide_index=True, use_container_width=True,
-            column_config={"P(falha 14d)": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1),
-                           "prioridade": st.column_config.NumberColumn(format="%.3f")})
-        st.caption("prioridade = 0,5 × risco relativo de falha + 0,5 × score CPTED (apagadas primeiro: reparo corretivo)")
-        alertas = api("/alertas?limite=200")
-        if "_erro" not in alertas:
-            st.subheader("Alertas")
-            st.write({k_: v for k_, v in alertas["contagem"].items()})
-            for a in alertas["alertas"][:12]:
-                icone = {"apagada": "⚫", "cintilando": "🟠", "risco_alto": "🔴"}.get(a["tipo"], "•")
-                st.write(f"{icone} {a['mensagem']}")
+        if len(filtro) == 1:
+            mapa.location = (float(filtro.iloc[0]["lat"]), float(filtro.iloc[0]["lon"]))
+        else:
+            mapa.fit_bounds([[filtro["lat"].min(), filtro["lon"].min()],
+                             [filtro["lat"].max(), filtro["lon"].max()]], max_zoom=15, padding=(24, 24))
+        st_folium(mapa, height=440, use_container_width=True, returned_objects=[])
 
 with aba_modelo:
+    st.caption("Avaliação global do modelo em dados simulados; os filtros não alteram estas métricas.")
     if "_erro" in metricas:
         st.info(metricas["_erro"])
     else:
@@ -173,6 +234,7 @@ with aba_modelo:
                    "luminárias do Recife.")
 
 with aba_cpted:
+    st.caption("CPTED: segurança pelo desenho do ambiente. Pesos e sensibilidade do parque completo.")
     cp = api("/cpted")
     if "_erro" in cp:
         st.info(cp["_erro"])
@@ -194,6 +256,7 @@ with aba_cpted:
                 st.dataframe(pd.DataFrame(s["cenarios"]).T, use_container_width=True)
 
 with aba_dim:
+    st.caption("Visão do parque completo: os filtros de luminárias não alteram o plano de dimerização.")
     if "_erro" in dim:
         st.info(dim["_erro"])
     else:
@@ -204,6 +267,7 @@ with aba_dim:
             ph["hora"] = ph["hora"].map(lambda h: f"{int(h):02d}h")
             ordem = ph["hora"].tolist()               # a API já devolve na ordem da noite (18h -> 05h)
             longo = ph.melt(id_vars="hora", value_vars=["pct_medio", "pct_min"], var_name="série", value_name="potência (%)")
+            longo["série"] = longo["série"].map({"pct_medio": "Potência média", "pct_min": "Potência mínima"})
             st.altair_chart(alt.Chart(longo).mark_line(point=True).encode(
                 x=alt.X("hora:N", sort=ordem), y=alt.Y("potência (%):Q", scale=alt.Scale(domain=[0, 100])),
                 color="série:N"), use_container_width=True)
@@ -211,7 +275,7 @@ with aba_dim:
                        "Pisos CPTED: alta 100% das 18h às 22h e ≥ 80% no resto; média ≥ 70%; baixa ≥ 50%.")
         with b:
             seg, eco = dim["seguranca"], dim["economia"]
-            st.subheader("Teste automático de segurança")
+            st.subheader("Segurança da dimerização")
             st.markdown(f"{'✅' if seg['aprovado'] else '❌'} **{seg['violacoes']} violações** em {seg['comandos']} "
                         f"comandos ({seg['pct_violacoes']}%). Critério de aceite: 0%.")
             st.subheader("Economia de energia")
@@ -225,7 +289,10 @@ with aba_dim:
                        "é trabalho futuro.")
 
 with aba_lum:
-    escolha = st.selectbox("Luminária", df.sort_values("posicao")["id_luminaria"])
+    if filtro.empty:
+        st.info("Sem luminárias neste recorte. Limpe ou ajuste os filtros para consultar o histórico.")
+        st.stop()
+    escolha = st.selectbox("Luminária do recorte", filtro.sort_values("posicao")["id_luminaria"])
     det = api(f"/luminarias/{escolha}?dias=120")
     if "_erro" in det:
         st.info(det["_erro"])

@@ -48,3 +48,17 @@ e use `ws://localhost:9001` no dashboard. O ESP32 continua na porta 1883 (troque
 ## Observação sobre "offline"
 
 O ESP32 publica `online` (retido) ao conectar e deixa `offline` como LWT. Quando a placa reinicia, o LWT da conexão antiga pode chegar depois do `online` da nova. Por isso o dashboard considera o poste online sempre que recebeu telemetria nos últimos 15 s.
+
+
+## Operação e telas menores (T8)
+
+Selecione um poste para ver seus dados e o destino do comando. Os atalhos **Enviar N%** publicam
+imediatamente; o slider exige o botão **Enviar**. A mensagem de envio confirma a publicação no broker:
+confira o brilho e o pedido na leitura seguinte para verificar a aplicação. Controles ficam desabilitados
+quando o broker está desconectado ou o poste está sem leitura recente.
+
+O aviso no topo diferencia conexão, falta de leitura e falha. Em celulares, a seleção ocupa duas
+colunas e a tabela permite rolagem horizontal. Os botões mantêm o foco nas atualizações periódicas.
+O card de bairro mostra um índice relativo de ranking, não a probabilidade de falha do poste.
+
+Revisão, cenários e capturas: [`docs/REVISAO_UX.md`](../../docs/REVISAO_UX.md).

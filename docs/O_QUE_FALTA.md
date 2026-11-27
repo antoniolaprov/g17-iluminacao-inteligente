@@ -133,7 +133,14 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
 - **Pronto quando:** a `main` tiver tudo, antes de 03/12. Depois do merge, combinem se o trabalho
   continua na `main`.
 
-### ⬜ T8 · Revisão de UX dos painéis 🤝 (Arthur)
+### ✅ T8 · Revisão de UX dos painéis 🤝 (Arthur)
+> **27/11/2026 (Luiz Claudio):** concluída. Gestor com operação primeiro, filtros e indicadores
+> coerentes, legenda completa e navegação reorganizada. Maquete com comandos antes dos gráficos,
+> destino/retorno de envio, estados de desconexão e foco de teclado preservado. Revisão em desktop
+> e celulares de 390/320 px; **37 testes aprovados**, incluindo cinco regressões de UX.
+> Lista de ajustes, origem dos cenários e capturas posteriores: [REVISAO_UX.md](REVISAO_UX.md).
+> Capturas dos painéis da T2 obtidas em ambiente local isolado; a T2 completa e os testes físicos
+> permanecem pendentes conforme o backlog.
 - **O que fazer:** revisar o painel do gestor (`applications/dashboard_gestor/app.py`) e o dashboard da
   maquete com o olhar de usuário:
   - legenda do mapa, textos, ordem das abas;
@@ -261,11 +268,11 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
 | Painel do gestor (Streamlit + mapa) e API | `applications/dashboard_gestor/`, `ml/src/api.py` |
 | Modelo de risco por bairro (Emlurb), modelo de rota e detector de anomalias | `applications/ml/src/` |
 | Demo em dois cliques | `INICIAR_DEMO.bat`, `PARAR_DEMO.bat` |
-| Testes automáticos (32) | `applications/tests/` |
+| Testes automáticos (37) | `applications/tests/` |
 
 ## Como conferir que está tudo funcionando
 
 1. `INICIAR_DEMO.bat` → responda N → espere as páginas abrirem.
 2. Os testes: `cd applications` e `docker compose run --rm --no-deps api python -m pytest tests -q`
-   (tem que dar "32 passed").
+   (tem que dar "37 passed").
 3. Http://localhost:8501 mostra o mapa com as 500 luminárias, e a aba "Dimerização" mostra "0 violações".

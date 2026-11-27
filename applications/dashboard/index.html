@@ -65,6 +65,9 @@
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--idle); flex: none; }
   button, input, select { font: inherit; color: inherit; }
   button { cursor: pointer; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 6px 12px; }
+  button, input[type=text], summary { min-height: 44px; }
+  :focus-visible { outline: 3px solid var(--series); outline-offset: 3px; }
+  [hidden] { display: none !important; }
   button:hover { border-color: var(--text-3); }
   button.primary { background: var(--series); border-color: var(--series); color: #fff; font-weight: 600; }
   button:disabled { opacity: .5; cursor: not-allowed; }
@@ -79,7 +82,15 @@
   .poste-chip small { color: var(--text-2); }
   .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; }
   .span-4 { grid-column: span 4; } .span-8 { grid-column: span 8; } .span-6 { grid-column: span 6; } .span-12 { grid-column: span 12; }
-  .estado { display: grid; grid-template-columns: 110px 1fr; gap: 16px; align-items: center; }
+  .estado { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 16px; align-items: center; }
+  .estado > svg { width: 100%; height: auto; }
+  .estado > div, .cascata > div { min-width: 0; overflow-wrap: anywhere; }
+  .hint code { overflow-wrap: anywhere; }
+  .notice { border-left: 4px solid var(--series); padding: 10px 14px; margin: 12px 0 16px; background: var(--surface); border-radius: 6px; }
+  .notice.warning { border-left-color: var(--warning); }
+  .notice.critical { border-left-color: var(--critical); }
+  .skip-link { position: absolute; left: 16px; top: -100px; }
+  .skip-link:focus { top: 8px; z-index: 10; background: var(--surface); padding: 8px; }
   .estado-nome { display: inline-flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 700; }
   .estado-desc { color: var(--text-2); font-size: 14px; margin-top: 2px; }
   .big { font-size: 40px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
@@ -111,6 +122,7 @@
   .risco-ml.alerta { border-color: var(--critical); }
   .risco-ml.alerta strong { color: var(--critical); }
   .cascata { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: center; }
+  .cascata svg { max-width: 100%; height: auto; }
   .cascata svg text { font: 12px system-ui, sans-serif; fill: var(--text-2); }
   .cascata .lamp { transition: opacity .2s; }
   .trav-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 10px 0; }
@@ -130,12 +142,20 @@
   }
   @media (max-width: 520px) {
     .cfg-grid { grid-template-columns: 1fr; }
-    .estado { grid-template-columns: 80px 1fr; }
+    .estado { grid-template-columns: 64px minmax(0, 1fr); }
+    .wrap { padding: 16px 12px 32px; }
+    .card { padding: 12px; }
+    .estado-nome { font-size: 18px; }
+    .trav-stats { gap: 8px; }
+    .postes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .poste-chip { gap: 6px; padding: 8px; text-align: left; }
+    .poste-chip small { min-width: 0; overflow-wrap: anywhere; }
     .big { font-size: 32px; }
   }
 </style>
 </head>
 <body>
+<a href="#painel" class="skip-link">Pular para o painel</a>
 <div class="wrap">
   <header>
     <div>
@@ -143,7 +163,7 @@
       <div class="sub">Iluminação pública inteligente · Recife · telemetria MQTT em tempo real</div>
     </div>
     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
-      <span class="pill" id="broker-pill"><span class="dot" id="broker-dot"></span><span id="broker-txt">Desconectado</span></span>
+      <span class="pill" id="broker-pill" role="status"><span class="dot" id="broker-dot"></span><span id="broker-txt">Desconectado</span></span>
       <button id="theme-btn" type="button" aria-label="Alternar tema claro/escuro">Tema</button>
     </div>
   </header>
@@ -162,11 +182,13 @@
     <div class="hint">HiveMQ público: <code>wss://broker.hivemq.com:8884/mqtt</code>. Mosquitto local (com listener WebSocket): <code>ws://localhost:9001</code>.</div>
   </details>
 
+  <h2>Selecione um poste</h2>
   <div class="postes" id="postes" role="group" aria-label="Postes">
     <div class="empty" id="postes-empty">Aguardando telemetria dos postes...</div>
   </div>
 
-  <div class="grid">
+  <div class="notice" id="aviso" role="status">Aguardando conexão e a primeira leitura dos postes.</div>
+  <main class="grid" id="painel" tabindex="-1">
     <section class="card span-4" aria-labelledby="t-estado">
       <h2 id="t-estado">Estado do poste <span id="sel-id"></span></h2>
       <div class="estado" id="estado-box">
@@ -230,6 +252,23 @@
       </div>
     </section>
 
+    <section class="card span-12" aria-labelledby="t-cmd">
+      <h2 id="t-cmd">Comando de potência</h2>
+      <div class="cmd-row">
+        <input type="range" id="cmd-range" disabled aria-describedby="cmd-help" min="0" max="100" step="5" value="90" aria-label="Potência solicitada">
+        <span class="cmd-val"><span id="cmd-val">90</span>%</span>
+        <button class="primary" id="cmd-send" aria-describedby="cmd-help" type="button" disabled>Enviar</button>
+      </div>
+      <div class="cmd-row" style="margin-top:10px">
+        <button type="button" data-p="40" disabled>Enviar 40%</button>
+        <button type="button" data-p="70" disabled>Enviar 70%</button>
+        <button type="button" data-p="90" disabled>Enviar 90%</button>
+        <button type="button" data-p="100" disabled>Enviar 100%</button>
+      </div>
+      <p id="cmd-feedback" class="hint" role="status">Selecione um poste com leitura recente para enviar comandos.</p>
+      <div class="hint" id="cmd-help">Destino: <code id="cmd-topic">—</code>. Os atalhos enviam imediatamente. À noite o poste nunca fica abaixo de 70% (piso de segurança); de dia a luz fica apagada; pedestre e fail-safe sempre vão a 100%.</div>
+    </section>
+
     <section class="card span-6" aria-labelledby="t-c1">
       <h2 id="t-c1">Brilho da luminária (%)</h2>
       <div class="chart-box"><canvas id="c-pct" aria-label="Gráfico do brilho da luminária ao longo do tempo"></canvas></div>
@@ -239,22 +278,6 @@
       <div class="chart-box"><canvas id="c-luz" aria-label="Gráfico da luz ambiente ao longo do tempo"></canvas></div>
     </section>
 
-    <section class="card span-6" aria-labelledby="t-cmd">
-      <h2 id="t-cmd">Comando de potência</h2>
-      <div class="cmd-row">
-        <input type="range" id="cmd-range" min="0" max="100" step="5" value="90" aria-label="Potência solicitada">
-        <span class="cmd-val"><span id="cmd-val">90</span>%</span>
-        <button class="primary" id="cmd-send" type="button" disabled>Enviar</button>
-      </div>
-      <div class="cmd-row" style="margin-top:10px">
-        <button type="button" data-p="40">40%</button>
-        <button type="button" data-p="70">70%</button>
-        <button type="button" data-p="90">90%</button>
-        <button type="button" data-p="100">100%</button>
-      </div>
-      <div class="hint">Enviado para <code id="cmd-topic">—</code>. À noite o poste nunca fica abaixo de 70% (piso de segurança); de dia a luz fica apagada; pedestre e fail-safe sempre vão a 100%.</div>
-    </section>
-
     <section class="card span-6" aria-labelledby="t-log">
       <h2 id="t-log">Eventos</h2>
       <ul class="log" id="log"><li class="empty">Nenhum evento ainda</li></ul>
@@ -262,14 +285,15 @@
 
     <section class="card span-12" aria-labelledby="t-tab">
       <h2 id="t-tab">Últimas leituras</h2>
-      <div class="table-wrap">
+      <div class="hint">Em telas menores, deslize a tabela para o lado para ver todas as colunas.</div>
+      <div class="table-wrap" tabindex="0" role="region" aria-label="Histórico de leituras, com rolagem horizontal">
         <table>
           <thead><tr><th>Hora</th><th>Estado</th><th>Brilho</th><th>Luz</th><th>Distância</th><th>Presença</th><th>Desgaste</th><th>Pedido</th></tr></thead>
           <tbody id="tab"><tr><td colspan="8" class="empty">Sem leituras</td></tr></tbody>
         </table>
       </div>
     </section>
-  </div>
+  </main>
 </div>
 
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
@@ -421,7 +445,7 @@ function setBroker(s) {
   const [cor, txt] = mapa[s];
   $('broker-dot').style.background = css(cor);
   $('broker-txt').textContent = txt;
-  $('cmd-send').disabled = !(s === 'ok' && selecionado);
+  renderizar();
 }
 
 function poste(id) {
@@ -472,17 +496,29 @@ function aoReceber(topico, payload) {
 
 function selecionar(id) {
   selecionado = id;
+  $('cmd-feedback').textContent = `Comandos destinados ao poste ${id}. Os atalhos enviam imediatamente.`;
   $('cmd-topic').textContent = `${cfg.prefix}/${id}/comando`;
   setBroker(cliente && cliente.connected ? 'ok' : 'erro');
   renderizarPostes(); renderizar(); atualizarGraficos();
 }
 
 // ---------------- Comando ----------------
+function atualizarComandos() {
+  const pronto = Boolean(cliente && cliente.connected && selecionado && situacao(postes[selecionado]) === 'online');
+  document.querySelectorAll('#cmd-send, #cmd-range, [data-p]').forEach(el => el.disabled = !pronto);
+}
+
 function enviar(v) {
-  if (!cliente || !cliente.connected || !selecionado) return;
-  const topico = `${cfg.prefix}/${selecionado}/comando`;
-  cliente.publish(topico, JSON.stringify({ potencia: v }), { qos: 1 });
-  registrar(`Comando enviado ao poste ${selecionado}: potência ${v}%`);
+  if (!cliente || !cliente.connected || !selecionado || situacao(postes[selecionado]) !== 'online') return;
+  const destino = selecionado;
+  const topico = `${cfg.prefix}/${destino}/comando`;
+  $('cmd-feedback').textContent = `Enviando ${v}% para ${destino}…`;
+  cliente.publish(topico, JSON.stringify({ potencia: v }), { qos: 1 }, erro => {
+    const mensagem = erro ? `Não foi possível enviar para ${destino}. Confira a conexão.`
+      : `Pedido de ${v}% enviado para ${destino}. Confira o brilho aplicado na próxima leitura.`;
+    if (selecionado === destino) $('cmd-feedback').textContent = mensagem;
+    registrar(mensagem);
+  });
 }
 $('cmd-range').addEventListener('input', e => $('cmd-val').textContent = e.target.value);
 $('cmd-send').addEventListener('click', () => enviar(+$('cmd-range').value));
@@ -501,23 +537,28 @@ function renderizarPostes() {
   const box = $('postes');
   const ids = Object.keys(postes).sort();
   if (!ids.length) return;
-  box.innerHTML = '';
-  for (const id of ids) {
-    const p = postes[id];
-    const est = p.ultimo ? p.ultimo.estado : '—';
-    const sit = situacao(p);
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'poste-chip';
-    b.setAttribute('aria-pressed', id === selecionado);
-    const cor = sit === 'online' ? css((ESTADOS[est] || ESTADOS.INICIANDO).cor) : css('--idle');
-    b.innerHTML = `<span class="dot" style="background:${cor}"></span><strong></strong><small></small>`;
-    b.querySelector('strong').textContent = id;
-    b.querySelector('small').textContent = (sit === 'online' ? est : sit) + (p.anomalia && (p.anomalia.alerta ?? (p.anomalia.anomalias > 0 ? 1 : 0)) === 1 ? ' ⚠' : '');
-    b.addEventListener('click', () => selecionar(id));
-    box.appendChild(b);
+  // Preserva os botões e o foco do teclado durante as atualizações a cada segundo.
+  if (box.dataset.ids !== ids.join('|')) {
+    box.replaceChildren();
+    for (const id of ids) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'poste-chip';
+      b.innerHTML = '<span class="dot"></span><strong></strong><small></small>';
+      b.querySelector('strong').textContent = id;
+      b.addEventListener('click', () => selecionar(id));
+      box.appendChild(b);
+    }
+    box.dataset.ids = ids.join('|');
   }
+  ids.forEach((id, i) => {
+    const p = postes[id], est = p.ultimo ? p.ultimo.estado : '—', sit = situacao(p);
+    const b = box.children[i];
+    b.setAttribute('aria-pressed', String(id === selecionado));
+    b.querySelector('.dot').style.background = sit === 'online' ? css((ESTADOS[est] || ESTADOS.INICIANDO).cor) : css('--idle');
+    const anomalo = p.anomalia && (p.anomalia.alerta ?? (p.anomalia.anomalias > 0 ? 1 : 0)) === 1;
+    b.querySelector('small').textContent = (sit === 'online' ? est : sit) + (anomalo ? ' · anomalia' : '');
+  });
 }
-
 
 // Cascata em Y (firmware v3.0): só aparece para postes que mandam pct_esq/pct_dir
 const FONTES = {
@@ -564,10 +605,10 @@ function renderizar() {
   caixaRisco.hidden = !(p && p.risco);
   if (p && p.risco) {
     const r = p.risco;
-    caixaRisco.innerHTML = `Risco previsto pelo ML: <strong></strong><br><span></span>`;
+    caixaRisco.innerHTML = `Ranking do bairro (ML): <strong></strong><br><span></span>`;
     caixaRisco.querySelector('strong').textContent = `${String(r.classe).toUpperCase()} (${fmt(r.risco, 2)})`;
     caixaRisco.querySelector('span').textContent =
-      `${r.bairro} · ${fmt(r.previsao_chamados, 0)} chamados previstos em ${r.mes_previsto}`;
+      `${r.bairro} · ${fmt(r.previsao_chamados, 0)} chamados previstos em ${r.mes_previsto}. Índice relativo; não é probabilidade de falha do poste.`;
   }
   const caixaAnom = $('anomalia-ml');
   caixaAnom.hidden = !(p && p.anomalia);
@@ -580,7 +621,31 @@ function renderizar() {
       ? `${a.anomalias} de ${a.leituras} leituras recentes fora do normal · ${a.modelo}`
       : `${a.leituras} leituras recentes dentro do normal · ${a.modelo}`;
   }
-  if (!p || !p.ultimo) { renderizarCascata(p); return; }
+  atualizarComandos();
+  const aviso = $('aviso');
+  const sitAtual = situacao(p);
+  const conectado = cliente && cliente.connected;
+  const falha = p && p.ultimo && p.ultimo.estado === 'FALHA';
+  aviso.className = 'notice' + (!conectado || sitAtual !== 'online' ? ' warning' : falha ? ' critical' : '');
+  const textoAviso = !conectado ? 'Central desconectada. Reconexão automática em andamento; comandos indisponíveis.'
+    : !p || !p.ultimo ? 'Central conectada. Aguardando a primeira leitura do poste.'
+    : sitAtual !== 'online' ? `${selecionado} sem leitura recente. Valores históricos; comandos indisponíveis.`
+    : falha ? `${selecionado} com falha na lâmpada. Acione a manutenção.`
+    : `${selecionado} recebendo leituras. Selecione outro poste acima para acompanhar.`;
+  if (aviso.textContent !== textoAviso) aviso.textContent = textoAviso;
+  if (!p || !p.ultimo) {
+    $('estado-nome').textContent = 'Aguardando leitura';
+    $('estado-desc').textContent = 'Nenhuma leitura recebida para este poste.';
+    $('estado-dot').style.background = css('--idle');
+    $('estado-box').classList.remove('falha');
+    $('lamp-glow').setAttribute('opacity', '0');
+    for (const id of ['pct', 'v-luz', 'v-ped', 'v-desg', 'v-pedido', 'v-eco', 'v-up', 'meta']) $(id).textContent = '—';
+    $('d-online').textContent = 'Aguardando telemetria';
+    $('b-desg').style.width = '0';
+    $('tab').innerHTML = '<tr><td colspan="8" class="empty">Sem leituras deste poste</td></tr>';
+    renderizarCascata(p);
+    return;
+  }
   const d = p.ultimo, sit = situacao(p);
   const e = ESTADOS[d.estado] || ESTADOS.INICIANDO;
 
@@ -627,6 +692,10 @@ $('cfg-btn').addEventListener('click', () => {
   salvarConfig(cfg);
   for (const k in postes) delete postes[k];
   selecionado = null;
+  delete $('postes').dataset.ids;
+  $('cmd-topic').textContent = '—';
+  $('cmd-feedback').textContent = 'Aguardando leitura recente para enviar comandos.';
+  renderizar();
   $('postes').innerHTML = '<div class="empty">Aguardando telemetria dos postes...</div>';
   atualizarGraficos();
   conectar();
