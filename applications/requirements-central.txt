@@ -12,3 +12,15 @@ skops==0.16.0
 fastapi==0.162.5
 uvicorn==0.54.0
 paho-mqtt==2.2.0
+
+# Proposta (Ideação/Planejamento): modelo de falha em 14 dias, PostgreSQL e dashboard do gestor.
+# Versões fixadas na primeira instalação (26/11), pelo mesmo motivo das de cima.
+xgboost==3.4.1
+optuna==5.1.0
+psycopg[binary]==3.3.9
+streamlit==1.67.0
+folium==1.0.0
+streamlit-folium==0.28.0
+# testes automáticos (python -m pytest applications/tests)
+pytest==9.2.0
+httpx==0.29.0

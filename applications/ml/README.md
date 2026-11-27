@@ -1,5 +1,17 @@
 # ML: risco de falha por bairro
 
+> **Leia antes (26/11, noite):** o **modelo principal do projeto**, pela proposta oficial, é outro: a
+> **probabilidade de cada luminária falhar nos próximos 14 dias**, treinada com o simulador de
+> degradação (`src/treinar_falha.py`, `src/parque_features.py`, notebook `notebooks/03_falha_14d.ipynb`,
+> experimento `falha_14d` no MLflow). Resultados e protocolo na seção 10.0 do
+> [contexto](../../docs/CONTEXTO_PARA_IA.md); por que mudou em [`ALINHAMENTO_PROPOSTA.md`](../../docs/ALINHAMENTO_PROPOSTA.md).
+> O modelo de bairro deste README continua como **análise complementar com dados reais** e é a base da
+> calibração do simulador (taxa de falha e sazonalidade).
+>
+> Outros arquivos de `src/` desta pasta: `cpted.py` (score CPTED, AHP), `dimerizacao.py` (dimerização com
+> piso de segurança), `pipeline_parque.py` (o pipeline do parque), `anomalia_telemetria.py` (detector de
+> anomalias nos postes) e `prever_rota.py` (cascata em Y).
+
 Prepara a base que cruza o cadastro de postes da Emlurb com os chamados de "lâmpada apagada"
 da Central 156, para treinar o modelo de risco descrito no [`MACHINE_LEARNING.md`](../../MACHINE_LEARNING.md)
 da raiz. Este README documenta o que já foi decidido e verificado nos dados reais, para o grupo

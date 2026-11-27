@@ -12,6 +12,11 @@ O dia é acelerado: um ciclo dia/noite inteiro dura SIM_CICLO_MIN minutos (padr�
 para a demonstração mostrar o anoitecer em poucos minutos. O poste P02 tem o desgaste
 acelerado e entra em FALHA em poucos minutos, para mostrar o alerta.
 
+O poste P06 (SIM_DEFEITO_LUZ) tem um defeito que as regras do firmware não pegam: em 1 de cada 3
+dias simulados, o sensor de luz trava numa leitura baixa. O poste acha que é noite o dia inteiro e
+fica aceso de dia, sem mudar de estado. Quem percebe é o detector de anomalias
+(applications/ml/src/anomalia_telemetria.py).
+
 Sem a maquete por perto (trabalhando de casa), SIM_INCLUIR_P01=1 simula também o P01, para o
 dashboard e o ML terem o poste da maquete. O P01 simulado tem a cascata em Y do firmware v3.0
 (3 postes, S1, S2, eventos de entrada, travessias e obediência ao tópico .../rota do modelo),
@@ -20,7 +25,8 @@ ver cascata.py. Não use com a placa ligada no mesmo broker: os dois publicariam
 Uso:
     python applications/simulador/simulador.py
     (variáveis: MQTT_HOST, MQTT_PORT, SIM_POSTES (padrão 9 -> P02..P10), SIM_CICLO_MIN,
-     SIM_INCLUIR_P01 (padrão 0), SIM_CONSISTENCIA (padrão 0.85), SIM_PEDESTRE_S (padrão 12))
+     SIM_INCLUIR_P01 (padrão 0), SIM_CONSISTENCIA (padrão 0.85), SIM_PEDESTRE_S (padrão 12),
+     SIM_DEFEITO_LUZ (padrão P06; vazio = nenhum poste com o sensor de luz travando))
 """
 
 import json
@@ -41,6 +47,8 @@ QTD_POSTES = int(os.getenv("SIM_POSTES", "9"))
 INCLUIR_P01 = os.getenv("SIM_INCLUIR_P01", "0") == "1"
 CICLO_S = float(os.getenv("SIM_CICLO_MIN", "6")) * 60
 INTERVALO_S = 5
+DEFEITO_LUZ = {p.strip() for p in os.getenv("SIM_DEFEITO_LUZ", "P06").split(",") if p.strip()}
+LUZ_TRAVADA = 180   # leitura em que o sensor defeituoso trava (parece noite)
 
 # Mesmos parâmetros do firmware (placa física), ver docs/CONTEXTO_PARA_IA.md seção 8
 LIMIAR_NOITE = 2500
@@ -92,7 +100,13 @@ class PosteVirtual:
             self.pedido = valor
             print(f"[{self.id}] comando recebido: potência {valor}%", flush=True)
 
+    def sensor_travado(self, agora: float) -> bool:
+        """Defeito do SIM_DEFEITO_LUZ: o sensor trava no 3º de cada 3 dias simulados."""
+        return self.id in DEFEITO_LUZ and int((agora - self.inicio) / CICLO_S) % 3 == 2
+
     def ler_luz(self, agora: float) -> int:
+        if self.sensor_travado(agora):
+            return LUZ_TRAVADA
         # Senoide do dia simulado: meio-dia = máximo, meia-noite = mínimo
         fracao = ((agora - self.inicio) / CICLO_S + 0.25 + self.fase) % 1.0
         sol = max(0.0, math.sin(2 * math.pi * (fracao - 0.25) + math.pi / 2))

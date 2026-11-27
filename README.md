@@ -43,10 +43,31 @@ Para a disciplina, um **ESP32** representa um poste, com componentes que simulam
 | Indicador para o técnico | LED RGB de status |
 | Rede da cidade | Wi-Fi + MQTT |
 
-A montagem física está concluída: **um ESP32 (o poste `P01`) controlando 3 mini postes de maquete**,
-ligados juntos no mesmo pino, com sensores, luminária e rede testados e funcionando. Falta só decorar a
-maquete. A demonstração final junta esse poste físico com postes simulados (`P02` em diante) enviando
-dados para o mesmo painel.
+A montagem física está concluída: **um ESP32 (o poste `P01`) controlando 3 mini postes de maquete numa
+rua em Y**, cada um no seu pino, com dois sensores ultrassônicos (cascata em Y, firmware v3.0). Falta só
+decorar a maquete. A demonstração final junta esse poste físico com postes simulados (`P02` em diante)
+enviando dados para o mesmo painel.
+
+### A plataforma de gestão (proposta do projeto)
+
+Além da maquete, o projeto entrega a **plataforma de gestão da iluminação** definida na proposta
+(*Ideação, Proposição e Planejamento*):
+
+- **Monitoramento remoto:** um parque de **500 luminárias simuladas** em 10 bairros do Recife manda
+  telemetria elétrica e térmica (tensão, corrente, temperatura, cintilação, horas, ciclos) por MQTT, e
+  ela é gravada em **PostgreSQL**. As falhas vêm de um modelo de degradação de LED (driver, temperatura,
+  surtos, cintilação, L70) calibrado com os chamados reais de lâmpada apagada da Emlurb.
+- **Manutenção preditiva:** um modelo (Random Forest / XGBoost, Optuna, MLflow) estima a
+  **probabilidade de cada luminária falhar nos próximos 14 dias**.
+- **Priorização CPTED:** a lista de manutenção combina o risco de falha com um score CPTED (fluxo de
+  pedestres, vulnerabilidade noturna e relevância da via, com pesos pelo método AHP).
+- **Dimerização adaptativa:** potência conforme o horário e a demanda, nunca abaixo do piso CPTED
+  (alta 80-100%, média 70%, baixa 50%) nem do mínimo da ABNT NBR 5101, com teste automático de segurança.
+- **Painel do gestor:** mapa em Streamlit com o estado, o risco e a prioridade de cada luminária.
+
+Tudo roda em Docker, orquestrado pelo Airflow. Detalhes em
+[`docs/ALINHAMENTO_PROPOSTA.md`](docs/ALINHAMENTO_PROPOSTA.md) e
+[`docs/PREMISSAS_SIMULADOR.md`](docs/PREMISSAS_SIMULADOR.md).
 
 ---
 
@@ -88,7 +109,7 @@ deixar a rua mais escura.
 | `DIA` | Há luz ambiente suficiente | 0% | Verde |
 | `DIMERIZADO` | Noite, rua vazia | Pedido da central, nunca abaixo de 70% | Amarelo |
 | `NOITE` | Noite, rua vazia, central pediu 100% | 100% | Verde |
-| `PEDESTRE` | Alguém passou a menos de 5 cm nos últimos 0,5 s | 100% | Verde |
+| `PEDESTRE` | Alguém passou a menos de 10 cm nos últimos 0,5 s | 100% | Verde |
 | `FAILSAFE` | Noite e mais de 15 s sem comunicação | 100% | Azul |
 | `FALHA` | Desgaste da lâmpada acima de 70% | Mantém o calculado, com cintilação | Vermelho |
 
@@ -98,7 +119,7 @@ deixar a rua mais escura.
 |---|---|---|
 | Piso noturno | 70% | Diretriz CPTED: rua nunca fica escura |
 | Limite de noite (placa física) | escurece abaixo de 2500, clareia acima de 2700 | Sensível o bastante para a sombra da mão já virar noite na maquete (sala ≈ 3000). A faixa entre os dois valores (histerese) evita que a luz pisque quando a leitura fica perto do limite |
-| Distância de presença | 5 cm | Escala da maquete; é a menor distância que o HC-SR04 mede com confiança (no poste real, alguns metros) |
+| Distância de presença | menos de 10 cm, em 2 leituras seguidas | Escala da maquete: menor que a distância até o outro lado da rua (no poste real, alguns metros) |
 | Tempo de presença | 0,5 s | Na maquete, a luz volta para 70% logo depois que a mão sai (era 2 s; ficava com cara de atraso na demonstração) |
 | Correção gama | 4,0 na placa física (2,2 no Wokwi) | O olho não percebe brilho de forma linear: sem a correção, 70% de PWM parece quase 100%. Na maquete, o mini poste (LED de 3 V num pino de 3,3 V) brilha pouco e comprime a diferença, então o gama maior deixa o 70% em ~24% de PWM e o salto para 100% quando o pedestre passa fica evidente. Só muda como o LED mostra o valor; a lógica e a telemetria continuam em 70% |
 | Limite de desgaste | 70% | Avisar a manutenção antes da lâmpada queimar |
@@ -226,9 +247,11 @@ funcionam enquanto o Wi-Fi está ligado.
 | Pasta | Conteúdo |
 |---|---|
 | `esp32-esp8266/poste_g17/` | Firmware do poste (`sketch.ino`), circuito do Wokwi (`diagram.json`) e bibliotecas |
-| `applications/dashboard/` | Dashboard web, pronto e testado |
-| `applications/ml/` | Dados reais da Emlurb, EDA e (em breve) o modelo de risco por bairro |
-| `applications/` | Broker, coletor e simulador ainda *em desenvolvimento* |
+| `applications/dashboard/` | Dashboard da maquete em tempo real |
+| `applications/dashboard_gestor/` | Painel do gestor (Streamlit + mapa) |
+| `applications/simulador/` | Postes virtuais e o parque de luminárias com degradação |
+| `applications/ml/` | Modelo de falha em 14 dias, CPTED, dimerização, pipeline, API, DAGs; modelos da maquete (risco por bairro, rota, anomalias) |
+| `applications/` | Broker, coletor, ingestor, Docker Compose e testes ([como rodar](applications/README.md)) |
 | `schematics/` | Esquemáticos e fotos da montagem |
 | `docs/` | Documentação e [registro de testes](docs/testes_wokwi.md) |
 | [`MACHINE_LEARNING.md`](MACHINE_LEARNING.md) | Plano da parte de machine learning (dados da Emlurb, modelo de risco e integração por MQTT) |
@@ -258,14 +281,19 @@ Para gravar na placa física, mude `#define SIMULACAO 1` para `0` e preencha o n
 - [x] Telemetria e comandos via MQTT + LWT
 - [x] Fail-safe com carência de 15 s
 - [x] Testes no simulador ([registro](docs/testes_wokwi.md))
-- [x] Montagem física (1 ESP32 = poste `P01`, com 3 mini postes no GPIO18; falta só decorar a maquete)
+- [x] Montagem física (1 ESP32 = poste `P01`, cascata em Y com 3 mini postes e 2 ultrassônicos; falta só decorar a maquete)
 - [x] Dashboard web recebendo telemetria e enviando comando (testado com a placa real)
 - [x] IPv6 no broker local (testado por `::1`; ver [`applications/README.md`](applications/README.md))
 - [x] Central: Mosquitto local + coletor em SQLite + alertas (Telegram opcional), em Docker
 - [x] Simulador de postes virtuais (`P02`..`P10`)
 - [x] Modelo de risco por bairro com MLflow, API, publicação no MQTT e DAG do Airflow
       ([`applications/ml/README.md`](applications/ml/README.md))
-- [ ] ESP32 conectado ao Mosquitto local (hoje usa o HiveMQ público)
+- [x] Parque de 500 luminárias simuladas com degradação, calibrado com a Emlurb, gravando em PostgreSQL
+- [x] Modelo de falha em 14 dias (RF/XGBoost, Optuna, calibração, PR-AUC, robustez) no MLflow
+- [x] Score CPTED (AHP + sensibilidade) e dimerização com piso de segurança (0% de violações)
+- [x] Painel do gestor em Streamlit com mapa; DAGs `g17_falha_14d`; testes automáticos
+- [x] Ponte Mosquitto local ↔ HiveMQ pronta, para a placa usar a central local sem regravar
+- [ ] Testar a ponte e o modelo de rota com a placa no dia (A5/F4/F10)
 - [ ] Relatório CSBC
 
 ---

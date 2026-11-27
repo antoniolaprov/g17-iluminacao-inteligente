@@ -1,0 +1,97 @@
+{
+  "treinado_em": "2026-11-26T21:38:55",
+  "modelo": "local_outlier_factor",
+  "parametros": {
+    "contamination": 0.01,
+    "n_neighbors": 50
+  },
+  "features": [
+    "luz",
+    "luz_std",
+    "noite",
+    "presenca",
+    "dist",
+    "desvio_pct",
+    "incoerencia_noite"
+  ],
+  "mediana_luz_std": 109.227,
+  "janela_luz": 6,
+  "linhas": 14803,
+  "postes": [
+    "P01",
+    "P02",
+    "P03",
+    "P04",
+    "P05",
+    "P07",
+    "P08",
+    "P09",
+    "P10"
+  ],
+  "vence_regra_fixa": true,
+  "excluidos_do_treino": [
+    "P06"
+  ],
+  "metricas": {
+    "regra_fixa": {
+      "val_precisao": 1.0,
+      "val_recall": 0.6081,
+      "val_f1": 0.7563,
+      "val_roc_auc": 0.8041,
+      "val_taxa_alarme": 0.0304,
+      "teste_precisao": 1.0,
+      "teste_recall": 0.6081,
+      "teste_f1": 0.7563,
+      "teste_roc_auc": 0.8041,
+      "teste_taxa_alarme": 0.0304
+    },
+    "isolation_forest": {
+      "val_precisao": 0.5714,
+      "val_recall": 0.1081,
+      "val_f1": 0.1818,
+      "val_roc_auc": 0.723,
+      "val_taxa_alarme": 0.0095,
+      "teste_precisao": 0.5938,
+      "teste_recall": 0.1284,
+      "teste_f1": 0.2111,
+      "teste_roc_auc": 0.713,
+      "teste_taxa_alarme": 0.0108
+    },
+    "hibrido_isolation_forest": {
+      "val_precisao": 0.8983,
+      "val_recall": 0.7162,
+      "val_f1": 0.797,
+      "val_roc_auc": 0.9641,
+      "val_taxa_alarme": 0.0399,
+      "teste_precisao": 0.8934,
+      "teste_recall": 0.7365,
+      "teste_f1": 0.8074,
+      "teste_roc_auc": 0.9533,
+      "teste_taxa_alarme": 0.0412
+    },
+    "local_outlier_factor": {
+      "val_precisao": 0.9589,
+      "val_recall": 0.9459,
+      "val_f1": 0.9524,
+      "val_roc_auc": 0.9823,
+      "val_taxa_alarme": 0.0493,
+      "teste_precisao": 0.9728,
+      "teste_recall": 0.9662,
+      "teste_f1": 0.9695,
+      "teste_roc_auc": 0.9995,
+      "teste_taxa_alarme": 0.0496
+    },
+    "hibrido_local_outlier_factor": {
+      "val_precisao": 0.9589,
+      "val_recall": 0.9459,
+      "val_f1": 0.9524,
+      "val_roc_auc": 0.9825,
+      "val_taxa_alarme": 0.0493,
+      "teste_precisao": 0.9728,
+      "teste_recall": 0.9662,
+      "teste_f1": 0.9695,
+      "teste_roc_auc": 0.9996,
+      "teste_taxa_alarme": 0.0496
+    }
+  }
+}

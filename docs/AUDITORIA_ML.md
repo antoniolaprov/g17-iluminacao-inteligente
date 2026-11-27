@@ -6,6 +6,35 @@
 
 ---
 
+> ### ⚠️ Atualização de 26/11 (noite): alinhamento com a proposta original
+>
+> Esta auditoria comparou o código com a rubrica de ML, mas **não com a proposta oficial do projeto**
+> (*Ideação, Proposição e Planejamento*). A proposta define outro modelo principal: **classificação
+> binária de falha da luminária em 14 dias**, treinada com um **simulador de degradação**, com PR-AUC,
+> Optuna, calibração, score CPTED (AHP) e dimerização com piso de segurança. Isso foi implementado em
+> 26/11; o modelo de risco por bairro descrito abaixo continua, como análise complementar com dados
+> reais. Leia primeiro [`ALINHAMENTO_PROPOSTA.md`](ALINHAMENTO_PROPOSTA.md).
+>
+> Como a rubrica fica com o modelo principal (`falha_14d`):
+>
+> | Entregável (CC) | Onde está agora |
+> |---|---|
+> | 1. Bootstrap dataset + MQTT + persistência | Simulador do parque (`simulador/parque.py`) → MQTT `g17/luminaria/+/telemetria` → `ingestor_parque.py` → **PostgreSQL** |
+> | 2. Airflow + EDA + preparação | DAGs `g17_falha_14d` (validar → prever → priorizar → dimerizar) e `g17_falha_14d_treino`; limpeza em `parque_features.limpar_telemetria`; EDA em `notebooks/03_falha_14d.ipynb` |
+> | 3. Baseline + MLflow | Regra de horas acumuladas, regra de temperatura e aleatório estratificado; experimento `falha_14d` |
+> | 4. ≥ 3 modelos + visualizações + análise crítica | 3 baselines + Random Forest + XGBoost (+ calibrado); curvas PR, calibração, importância, robustez no notebook 03 e no painel do gestor |
+> | 5. Otimização de hiperparâmetros | Optuna (TPE) com validação walk-forward, cada tentativa no MLflow |
+> | 6. Validação cruzada + overfitting | Walk-forward com intervalo de 14 dias; treino/validação/teste temporais; teste de robustez com premissas alteradas |
+> | 7. Consumir dados novos do embarcado/simulador | Serviço `pipeline` (e DAG horário) prevê a cada dia novo que chega pelo MQTT e retreina a cada 180 dias novos; detector de anomalias na telemetria dos postes (`anomalia_telemetria.py`) |
+> | 8. Docker + dashboard + apresentação | `docker compose up` (ou `INICIAR_DEMO.bat`) sobe tudo, incluindo PostgreSQL e o painel do gestor em Streamlit (http://localhost:8501) |
+>
+> Situação das tasks abaixo depois desta atualização: **ML-05** feita (anomalias + pipeline do parque),
+> **ML-08** feita (`INICIAR_DEMO.bat` + DAGs), **ML-10** feita (`applications/tests/`, 32 testes),
+> **ML-11** feita (economia em `dimerizacao.py`, com extrapolação para o Recife). **ML-04** vale agora
+> para o notebook 03 (feito) e continua aberta para os notebooks 01/02 do modelo de bairro. **ML-06**
+> continua decisão do grupo. **ML-07** depende dos CSVs brutos (fora do Git). **ML-09** depende da placa.
+> **ML-12** (K-Means) não foi feita.
+
 ## 1. Resumo Executivo: Estado Atual vs. Rubrica Oficial
 
 | Entregável (CC) | Status | Diagnóstico direto |

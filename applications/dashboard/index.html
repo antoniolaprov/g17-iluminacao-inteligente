@@ -108,6 +108,8 @@
   .empty { color: var(--text-3); font-size: 14px; padding: 8px 0; }
   .risco-ml { margin-top: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-2); }
   .risco-ml strong { color: var(--text); }
+  .risco-ml.alerta { border-color: var(--critical); }
+  .risco-ml.alerta strong { color: var(--critical); }
   .cascata { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: center; }
   .cascata svg text { font: 12px system-ui, sans-serif; fill: var(--text-2); }
   .cascata .lamp { transition: opacity .2s; }
@@ -181,6 +183,7 @@
           <div class="big" style="margin-top:10px"><span id="pct">—</span><small> % de brilho</small></div>
           <div class="meta" id="meta">—</div>
           <div class="risco-ml" id="risco-ml" hidden></div>
+          <div class="risco-ml" id="anomalia-ml" hidden></div>
         </div>
       </div>
     </section>
@@ -298,6 +301,11 @@ function lerConfig() {
 function salvarConfig(c) { try { localStorage.setItem('g17-cfg', JSON.stringify(c)); } catch {} }
 
 let cfg = lerConfig();
+// index.html?broker=ws://localhost:9001 já abre no broker certo (usado pelo INICIAR_DEMO.bat)
+try {
+  const brokerUrl = new URLSearchParams(location.search).get('broker');
+  if (brokerUrl) { cfg.url = brokerUrl; salvarConfig(cfg); }
+} catch {}
 let cliente = null;
 let selecionado = null;
 const postes = {};   // id -> { ultimo, recebidoEm, status, hist: [], somaPct, nNoite }
@@ -400,7 +408,7 @@ function conectar() {
     setBroker('ok');
     registrar('Conectado ao broker');
     cliente.subscribe([`${cfg.prefix}/+/telemetria`, `${cfg.prefix}/+/status`, `${cfg.prefix}/+/risco`,
-                       `${cfg.prefix}/+/travessia`]);
+                       `${cfg.prefix}/+/travessia`, `${cfg.prefix}/+/anomalia`]);
   });
   cliente.on('reconnect', () => setBroker('conectando'));
   cliente.on('offline', () => setBroker('erro'));
@@ -439,6 +447,13 @@ function aoReceber(topico, payload) {
   } else if (tipo === 'risco') {
     // Publicado (retido) pelo ML: applications/ml/src/publicar_risco.py
     try { p.risco = JSON.parse(texto); } catch { return; }
+  } else if (tipo === 'anomalia') {
+    // Publicado (retido) pelo detector de anomalias: applications/ml/src/anomalia_telemetria.py
+    let a;
+    try { a = JSON.parse(texto); } catch { return; }
+    const emAlerta = x => x && (x.alerta ?? (x.anomalias > 0 ? 1 : 0)) === 1;
+    if (emAlerta(a) && !emAlerta(p.anomalia)) registrar(`Poste ${id}: anomalia detectada pelo ML (${a.motivo})`);
+    p.anomalia = a;
   } else if (tipo === 'telemetria') {
     let d;
     try { d = JSON.parse(texto); } catch { return; }
@@ -497,7 +512,7 @@ function renderizarPostes() {
     const cor = sit === 'online' ? css((ESTADOS[est] || ESTADOS.INICIANDO).cor) : css('--idle');
     b.innerHTML = `<span class="dot" style="background:${cor}"></span><strong></strong><small></small>`;
     b.querySelector('strong').textContent = id;
-    b.querySelector('small').textContent = sit === 'online' ? est : sit;
+    b.querySelector('small').textContent = (sit === 'online' ? est : sit) + (p.anomalia && (p.anomalia.alerta ?? (p.anomalia.anomalias > 0 ? 1 : 0)) === 1 ? ' ⚠' : '');
     b.addEventListener('click', () => selecionar(id));
     box.appendChild(b);
   }
@@ -553,6 +568,17 @@ function renderizar() {
     caixaRisco.querySelector('strong').textContent = `${String(r.classe).toUpperCase()} (${fmt(r.risco, 2)})`;
     caixaRisco.querySelector('span').textContent =
       `${r.bairro} · ${fmt(r.previsao_chamados, 0)} chamados previstos em ${r.mes_previsto}`;
+  }
+  const caixaAnom = $('anomalia-ml');
+  caixaAnom.hidden = !(p && p.anomalia);
+  if (p && p.anomalia) {
+    const a = p.anomalia, alerta = (a.alerta ?? (a.anomalias > 0 ? 1 : 0)) === 1;
+    caixaAnom.classList.toggle('alerta', alerta);
+    caixaAnom.innerHTML = `Anomalia na telemetria (ML): <strong></strong><br><span></span>`;
+    caixaAnom.querySelector('strong').textContent = alerta ? `SIM · ${a.motivo}` : 'nenhuma';
+    caixaAnom.querySelector('span').textContent = alerta
+      ? `${a.anomalias} de ${a.leituras} leituras recentes fora do normal · ${a.modelo}`
+      : `${a.leituras} leituras recentes dentro do normal · ${a.modelo}`;
   }
   if (!p || !p.ultimo) { renderizarCascata(p); return; }
   const d = p.ultimo, sit = situacao(p);

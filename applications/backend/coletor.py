@@ -7,6 +7,7 @@ Coletor da central: assina o MQTT de todos os postes e guarda tudo em SQLite.
 - g17/poste/+/travessia  -> tabela travessia  (cascata em Y: previsto x real; dado de treino do
                             modelo de rota)
 - g17/poste/+/evento     -> tabela evento     (pedestre entrou pelo S1)
+- g17/poste/+/anomalia   -> tabela anomalia   (o que o detector de anomalias do ML publicou)
 
 Também gera alertas (bônus da disciplina) e os grava na tabela alertas:
 - o poste entrou em FALHA (desgaste acima de 0,70);
@@ -64,6 +65,7 @@ CREATE TABLE IF NOT EXISTS travessia (
     real TEXT, acertou INTEGER, duracao_ms INTEGER, uptime INTEGER, origem TEXT
 );
 CREATE TABLE IF NOT EXISTS evento (recebido_em TEXT NOT NULL, id TEXT NOT NULL, payload TEXT);
+CREATE TABLE IF NOT EXISTS anomalia (recebido_em TEXT NOT NULL, id TEXT NOT NULL, payload TEXT);
 """
 
 
@@ -121,7 +123,7 @@ class Coletor:
             print(f"[MQTT] recusou a conexão: {codigo}", flush=True)
             return
         print(f"[MQTT] conectado a {MQTT_HOST}:{MQTT_PORT}; gravando em {DB_PATH}", flush=True)
-        for tipo in ("telemetria", "status", "risco", "travessia", "evento"):
+        for tipo in ("telemetria", "status", "risco", "travessia", "evento", "anomalia"):
             cliente.subscribe(f"{MQTT_PREFIXO}/+/{tipo}", qos=1)
 
     def ao_receber(self, _cliente, _userdata, msg):
@@ -144,6 +146,8 @@ class Coletor:
                 )
             elif tipo == "evento":
                 self.gravar("INSERT INTO evento VALUES (?, ?, ?)", (agora(), poste_id, texto))
+            elif tipo == "anomalia":
+                self.gravar("INSERT INTO anomalia VALUES (?, ?, ?)", (agora(), poste_id, texto))
         except Exception as erro:  # uma mensagem malformada não pode parar a coleta
             print(f"[ERRO] {msg.topic}: {erro}", flush=True)
 

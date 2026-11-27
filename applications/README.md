@@ -13,8 +13,22 @@ Tudo o que roda no PC, do lado da "central da prefeitura". O formato das mensage
 | [`ml/`](ml/) | Dados da Emlurb, modelo de risco por bairro, **modelo de rota da cascata** (`src/prever_rota.py`), MLflow, API e DAG do Airflow ([README](ml/README.md)) | Pronto, ver detalhes |
 | [`docker-compose.yml`](docker-compose.yml) + [`Dockerfile`](Dockerfile) + [`airflow/Dockerfile`](airflow/Dockerfile) | Sobe tudo em containers | Pronto, testado |
 | [`comum.py`](comum.py) | Configuração MQTT compartilhada (variáveis de ambiente) | — |
+| **Parque de luminárias (proposta)** | | |
+| [`simulador/parque.py`](simulador/parque.py) + [`premissas_parque.json`](simulador/premissas_parque.json) | 500 luminárias simuladas com degradação (Weibull, Arrhenius, surtos, cintilação, L70), calibradas com a Emlurb; gera o histórico e depois publica `g17/luminaria/<id>/telemetria` ao vivo | Pronto, testado |
+| [`banco_parque.py`](banco_parque.py) | Banco do parque: PostgreSQL no Docker (`DATABASE_URL`), SQLite fora dele | Pronto, testado |
+| [`backend/ingestor_parque.py`](backend/ingestor_parque.py) | MQTT das luminárias → PostgreSQL | Pronto, testado |
+| [`ml/src/treinar_falha.py`](ml/src/treinar_falha.py) | Modelo de falha em 14 dias: RF e XGBoost com Optuna, calibração, PR-AUC, baselines, robustez, MLflow | Pronto, testado |
+| [`ml/src/pipeline_parque.py`](ml/src/pipeline_parque.py) | Validar → prever → priorizar (CPTED) → dimerizar; é o que o DAG `g17_falha_14d` roda | Pronto, testado |
+| [`ml/src/cpted.py`](ml/src/cpted.py) / [`ml/src/dimerizacao.py`](ml/src/dimerizacao.py) | Score CPTED com pesos AHP e sensibilidade / dimerização com pisos CPTED e ABNT e teste de segurança | Pronto, testado |
+| [`dashboard_gestor/app.py`](dashboard_gestor/app.py) | Painel do gestor em Streamlit, com mapa (Folium), lista de manutenção, alertas, modelo, CPTED e dimerização | Pronto, testado |
+| [`tests/`](tests/) | Testes automáticos (pytest) | Pronto |
 
 ---
+
+## Jeito 0: dois cliques
+
+Na raiz do repositório: **`INICIAR_DEMO.bat`** (pergunta se a maquete está ligada, sobe tudo, treina o
+que faltar no MLflow e abre as páginas) e **`PARAR_DEMO.bat`** para desligar.
 
 ## Jeito 1: tudo no Docker (recomendado para a demonstração)
 
@@ -22,19 +36,29 @@ Precisa do **Docker Desktop** ligado.
 
 ```bash
 cd applications
-docker compose up -d --build            # Mosquitto, coletor, MLflow e API
+docker compose up -d --build            # Mosquitto, PostgreSQL, coletor, MLflow, API, rota, anomalias,
+                                        # parque de luminárias, ingestor, pipeline e painel do gestor
 docker compose --profile sim up -d      # + postes simulados P02..P10
-docker compose run --rm publicar        # manda o risco e o comando de potência para os postes
+docker compose run --rm publicar        # manda o risco por bairro para os postes
 ```
+
+Na **primeira vez**, o serviço `parque` gera 900 dias de histórico das 500 luminárias e grava no
+PostgreSQL (uns 2 minutos), e o serviço `pipeline` treina o modelo de falha se ele não existir. Depois
+disso, um dia simulado passa a cada 30 s (`PARQUE_DIA_S`), e o pipeline atualiza previsões,
+prioridades e dimerização a cada dia novo. Para treinar de novo na mão:
+`docker compose run --rm --no-deps pipeline python ml/src/treinar_falha.py`.
 
 | O quê | Onde |
 |---|---|
-| Dashboard | abra `dashboard/index.html`, vá em **Configuração do broker** e use `ws://localhost:9001` |
+| **Painel do gestor** (mapa, manutenção preditiva, CPTED, dimerização) | http://localhost:8501 |
+| Dashboard da maquete | abra `dashboard/index.html?broker=ws://localhost:9001` (ou configure o broker na tela) |
 | API de risco | http://localhost:8000/docs |
 | MLflow (experimentos e modelo registrado) | http://localhost:5000 |
 | Airflow (`docker compose --profile airflow up -d --build`, pesado: ~3 GB na primeira vez) | http://localhost:8080, usuário `admin`, senha: `docker compose exec airflow cat standalone_admin_password.txt`. O DAG é o `g17_risco_bairro`; os scripts rodam num venv próprio (`airflow/Dockerfile`), porque o Airflow traz numpy 1.x e o modelo usa numpy 2 |
-| Banco do coletor | `backend/dados/central.db` (fora do Git) |
-| Logs | `docker compose logs -f coletor` (troque pelo serviço) |
+| Banco do coletor (maquete) | `backend/dados/central.db` (fora do Git) |
+| Banco do parque (PostgreSQL) | `docker compose exec postgres psql -U g17 -d g17` (tabelas em `banco_parque.py`) |
+| Logs | `docker compose logs -f coletor` (troque pelo serviço: `parque`, `pipeline`, `ingestor`, `gestor`...) |
+| Testes | `docker compose run --rm --no-deps api python -m pytest tests -q` |
 
 Para desligar: `docker compose --profile sim --profile airflow down`.
 

@@ -1,8 +1,9 @@
 {
-  "treinado_em": "2026-11-26T15:19:37",
-  "modelo": "regressao_logistica",
+  "treinado_em": "2026-11-26T21:37:43",
+  "modelo": "arvore_rasa",
   "parametros": {
-    "C": 1.0
+    "max_depth": 3,
+    "min_samples_leaf": 10
   },
   "features": [
     "dist_s1",
@@ -13,39 +14,39 @@
     "direita",
     "esquerda"
   ],
-  "linhas": 828,
+  "linhas": 1261,
   "origens": {
     "sintetico": 800,
-    "simulador": 28
+    "simulador": 461
   },
   "metricas": {
     "maioria": {
-      "cv_acuracia_media": 0.525,
-      "cv_acuracia_desvio": 0.0015,
-      "teste_acuracia": 0.5411,
-      "teste_f1_macro": 0.3511,
-      "teste_log_loss": 6.3405
+      "cv_acuracia_media": 0.5206,
+      "cv_acuracia_desvio": 0.0026,
+      "teste_acuracia": 0.5348,
+      "teste_f1_macro": 0.3485,
+      "teste_log_loss": 6.4268
     },
     "regra_lado": {
-      "cv_acuracia_media": 0.8567,
-      "cv_acuracia_desvio": 0.0254,
-      "teste_acuracia": 0.8164,
-      "teste_f1_macro": 0.8163,
-      "teste_log_loss": 2.5362
+      "cv_acuracia_media": 0.8487,
+      "cv_acuracia_desvio": 0.0072,
+      "teste_acuracia": 0.8291,
+      "teste_f1_macro": 0.8288,
+      "teste_log_loss": 2.3609
     },
     "regressao_logistica": {
-      "cv_acuracia_media": 0.8519,
-      "cv_acuracia_desvio": 0.024,
-      "teste_acuracia": 0.8164,
-      "teste_f1_macro": 0.8163,
-      "teste_log_loss": 0.5062
+      "cv_acuracia_media": 0.8444,
+      "cv_acuracia_desvio": 0.0072,
+      "teste_acuracia": 0.8196,
+      "teste_f1_macro": 0.8194,
+      "teste_log_loss": 0.5181
     },
     "arvore_rasa": {
-      "cv_acuracia_media": 0.8519,
-      "cv_acuracia_desvio": 0.0315,
-      "teste_acuracia": 0.8164,
-      "teste_f1_macro": 0.8163,
-      "teste_log_loss": 0.5043
+      "cv_acuracia_media": 0.8466,
+      "cv_acuracia_desvio": 0.0058,
+      "teste_acuracia": 0.8291,
+      "teste_f1_macro": 0.8288,
+      "teste_log_loss": 0.4816
     }
   }
 }
