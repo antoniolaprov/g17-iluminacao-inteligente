@@ -304,3 +304,4 @@ Luiz Claudio Pinheiro e Miguel Becker.
 
 > Vai usar um assistente de IA no projeto? Anexe o arquivo
 > [`docs/CONTEXTO_PARA_IA.md`](docs/CONTEXTO_PARA_IA.md) no início da conversa.
+> O que ainda falta fazer está em [`docs/O_QUE_FALTA.md`](docs/O_QUE_FALTA.md).

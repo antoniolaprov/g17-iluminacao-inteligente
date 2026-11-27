@@ -11,8 +11,11 @@ frentes no mesmo repositório:
 
 ## Leia antes de qualquer coisa
 
+0. [`docs/O_QUE_FALTA.md`](docs/O_QUE_FALTA.md): **lista única do que falta para terminar o projeto**
+   (tarefas T1 a T20, com critério de pronto e quem consegue fazer). Se pedirem "faça a tarefa T4",
+   é dali. Ao terminar uma tarefa, marque-a como feita nesse arquivo no mesmo commit.
 1. [`docs/CONTEXTO_PARA_IA.md`](docs/CONTEXTO_PARA_IA.md): **fonte única e completa** do projeto: o que
-   existe, como funciona, regras e a lista de **tudo o que falta fazer, com critério de pronto**.
+   existe, como funciona e as regras.
 2. [`docs/ALINHAMENTO_PROPOSTA.md`](docs/ALINHAMENTO_PROPOSTA.md): o que a **proposta original** define e
    como o repositório atende cada ponto. **A proposta é o documento oficial**: se o código divergir dela
    sem justificativa escrita nesse arquivo, o código está errado.

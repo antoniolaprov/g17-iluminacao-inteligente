@@ -1,5 +1,7 @@
 # CONTEXTO COMPLETO DO PROJETO: Grupo 17 · Sistemas Embarcados (CESAR School)
 
+> **O que falta fazer:** [`O_QUE_FALTA.md`](O_QUE_FALTA.md).
+>
 > **Para que serve:** este é o documento único e completo do projeto, feito para ser lido por uma IA
 > (Claude, ChatGPT etc.) antes de ajudar qualquer integrante. Ele diz o que o projeto é, o que já existe e
 > funciona, como cada parte funciona, as regras que não podem ser quebradas e **tudo o que ainda falta
@@ -502,6 +504,10 @@ na hora se ele não existir.
 
 ## 11. O que falta fazer (tudo), com critério de pronto
 
+> **A lista atual do que falta está em [`O_QUE_FALTA.md`](O_QUE_FALTA.md)** (tarefas T1 a T20, por
+> prioridade, com quem consegue fazer cada uma). As tabelas abaixo são o histórico do que foi planejado e
+> feito; quando houver diferença, vale o `O_QUE_FALTA.md`.
+
 Ordem sugerida pelo risco para a nota. Entrega dos documentos em **03/12**; demo em **12/12**.
 
 > **Situação em 26/11 (noite):** além do que está abaixo, a parte G (proposta oficial) foi implementada.
@@ -595,6 +601,7 @@ Itens do backlog da proposta. Detalhes e justificativas em [`ALINHAMENTO_PROPOST
 | `MACHINE_LEARNING.md` | Plano detalhado de ML |
 | `docs/CONTEXTO_PARA_IA.md` | **Este arquivo** |
 | `docs/AUDITORIA_ML.md` | Auditoria dos entregáveis de ML vs. rubrica oficial, backlog de tasks (`ML-01`..`ML-13`) e guia de explicabilidade |
+| `docs/O_QUE_FALTA.md` | **Lista atual do que falta** (T1 a T20), com critério de pronto |
 | `docs/ALINHAMENTO_PROPOSTA.md` | O que a proposta oficial define e como o repositório atende cada ponto (e o que diverge, justificado) |
 | `docs/PREMISSAS_SIMULADOR.md` | Premissas, fontes e calibração do simulador do parque de luminárias |
 | `INICIAR_DEMO.bat` / `PARAR_DEMO.bat` | Liga e desliga toda a demonstração no Docker |
