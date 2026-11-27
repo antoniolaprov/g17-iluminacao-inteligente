@@ -1,5 +1,17 @@
 # ML: risco de falha por bairro
 
+> **Leia antes (26/11, noite):** o **modelo principal do projeto**, pela proposta oficial, é outro: a
+> **probabilidade de cada luminária falhar nos próximos 14 dias**, treinada com o simulador de
+> degradação (`src/treinar_falha.py`, `src/parque_features.py`, notebook `notebooks/03_falha_14d.ipynb`,
+> experimento `falha_14d` no MLflow). Resultados e protocolo na seção 10.0 do
+> [contexto](../../docs/CONTEXTO_PARA_IA.md); por que mudou em [`ALINHAMENTO_PROPOSTA.md`](../../docs/ALINHAMENTO_PROPOSTA.md).
+> O modelo de bairro deste README continua como **análise complementar com dados reais** e é a base da
+> calibração do simulador (taxa de falha e sazonalidade).
+>
+> Outros arquivos de `src/` desta pasta: `cpted.py` (score CPTED, AHP), `dimerizacao.py` (dimerização com
+> piso de segurança), `pipeline_parque.py` (o pipeline do parque), `anomalia_telemetria.py` (detector de
+> anomalias nos postes) e `prever_rota.py` (cascata em Y).
+
 Prepara a base que cruza o cadastro de postes da Emlurb com os chamados de "lâmpada apagada"
 da Central 156, para treinar o modelo de risco descrito no [`MACHINE_LEARNING.md`](../../MACHINE_LEARNING.md)
 da raiz. Este README documenta o que já foi decidido e verificado nos dados reais, para o grupo
@@ -150,8 +162,8 @@ contra os dois alvos possíveis:
 
 | Feature | correlação com o binário | correlação com a contagem |
 |---|---|---|
-| `chamados_lampada_apagada` (mês atual) | 0,15 | **0,89** |
-| `media_movel_3m` | 0,14 | **0,88** |
+| `chamados_lampada_apagada` (mês atual) | 0,14 | **0,89** |
+| `media_movel_3m` | 0,14 | **0,87** |
 | `chamados_lag1` | 0,14 | **0,85** |
 | `total_postes` (estática) | 0,04 | **0,80** |
 
@@ -162,9 +174,8 @@ preserva toda a informação.
 
 > **Correção de 25/11 no split:** antes, a linha de 2024-12 ficava no treino, mas o alvo dela é a
 > contagem de **2025-01**, que é período de teste (vazamento de 94 linhas). Agora o `preparar_dados.py`
-> separa pelo mês do alvo, e o CSV processado já foi atualizado. Os números da tabela acima e das
-> seções 4 e 5 do notebook foram calculados antes dessa correção (mudam pouco). **Rode o notebook de
-> novo** antes de usar esses números no relatório.
+> separa pelo mês do alvo, e o CSV processado já foi atualizado. O notebook foi executado de novo com
+> a base corrigida, e a tabela acima já mostra os números atualizados.
 
 **Decisão: o `treinar.py` prevê `chamados_mes_seguinte` (regressão), não `teve_chamado_mes_seguinte`
 (classificação).** A previsão vira "risco de 0 a 1" normalizando por percentil entre os bairros do
@@ -222,35 +233,27 @@ se os dados mudarem. Principais achados (além do que já está nas seções aci
 
 ---
 
-## 7. Modelo treinado (25/11)
+## 7. Modelo treinado (atualizado em 26/11)
 
-`src/treinar.py` compara 4 modelos e as 2 regras simples, registra cada um como uma run no **MLflow**
-(experimento `risco_bairro`) e registra o escolhido no Model Registry (`risco_bairro`).
+`src/treinar.py` aplica pré-processamento por tipo (`log1p` + padronização só nas contínuas, `OneHotEncoder` em `rpa` e `sin`/`cos` em `mes_do_ano`), faz tuning via `TimeSeriesSplit(n_splits=5)` com nested runs no **MLflow** (experimento `risco_bairro`), compara os modelos otimizados contra o baseline linear clássico (`baseline_linear`) e as 2 regras simples, registra artefatos (modelos, pesos, resíduos e gráficos) em todas as runs e registra o escolhido no Model Registry (`risco_bairro`).
 
-**Como escolhe, sem olhar o teste:** dentro do treino, os últimos 12 meses de alvo (2024) são a
-validação. O escolhido é o de menor MAE na validação. O teste (alvos de 2025) só é medido para o
-relatório. Depois, o escolhido é retreinado com tudo e prevê o mês seguinte ao último dado (2025-12).
+**Como escolhe, sem olhar o teste:** os hiperparâmetros de cada modelo são otimizados por `TimeSeriesSplit` dentro do treino; em seguida, o vencedor é escolhido pelo menor MAE na validação recente (os últimos 12 meses de alvo do treino, 2024). O teste (alvos de 2025) só é medido para o relatório. Depois, o escolhido é retreinado com tudo e prevê o mês seguinte ao último dado (2025-12).
 
-| Modelo | MAE validação | MAE teste | RMSE teste | Precisão top 10% (teste) | Top 10% por taxa (teste) |
-|---|---|---|---|---|---|
-| **`poisson_glm`** (escolhido) | **8,30** | **7,80** | **12,07** | 0,80 | 0,55 |
-| regra `media_movel_3m` | 8,93 | 8,66 | 13,65 | 0,75 | 0,57 |
-| `random_forest` | 9,25 | 7,90 | 12,17 | 0,80 | 0,55 |
-| regra persistência | 9,55 | 9,21 | 13,85 | **0,81** | 0,48 |
-| `hist_gb_poisson` | 9,95 | 8,27 | 12,97 | 0,78 | 0,55 |
-| `gradient_boosting` | 10,04 | 8,26 | 13,43 | 0,76 | 0,54 |
+| Modelo | MAE ajuste | MAE validação | CV temporal (5 folds) | MAE teste | RMSE teste | $R^2$ teste | Top 10% (teste) |
+|---|---|---|---|---|---|---|---|
+| **`poisson_glm`** (`alpha=5.0`, escolhido) | 7,61 | **8,67** | 8,38 ± 1,61 | 8,07 | 12,63 | 0,893 | 0,80 |
+| regra `media_movel_3m` | 9,53 | 8,93 | 9,42 ± 2,16 | 8,66 | 13,65 | 0,875 | 0,75 |
+| `baseline_linear` (`LinearRegression`) | 7,74 | 9,14 | 8,65 ± 1,34 | 8,27 | 12,30 | 0,899 | **0,81** |
+| `random_forest` (`depth=8, leaf=3`) | 5,07 | 9,33 | **8,23** ± 1,69 | **7,83** | **12,15** | **0,901** | 0,80 |
+| `hist_gb_poisson` (`depth=5, lr=0.03`) | 5,15 | 9,51 | 8,30 ± 1,64 | 7,89 | 12,23 | 0,900 | **0,81** |
+| regra persistência | 8,87 | 9,55 | 9,22 ± 1,93 | 9,21 | 13,85 | 0,872 | 0,81 |
+| `gradient_boosting` (`depth=3, lr=0.03`) | 6,38 | 9,60 | 8,36 ± 1,71 | 8,26 | 13,02 | 0,887 | 0,76 |
 
 **Leitura honesta para o relatório:**
-- O `poisson_glm` (regressão de Poisson sobre o log das features, um modelo feito para contagens) é o
-  único que **vence a melhor regra na validação** e também tem o **menor MAE no teste** (7,80, abaixo
-  da meta de 8,66).
-- Na **precisão no top 10%** nenhum modelo passa a persistência (0,81): para "quais 9 bairros vão ter
-  mais chamados", repetir o mês atual já é muito bom. O ganho do modelo está em errar menos o volume.
-- Os modelos de árvore erram mais na validação do que no teste: com só ~1.900 linhas de ajuste e
-  séries muito persistentes, eles decoram o histórico. Modelos lineares/de contagem generalizam melhor
-  aqui.
-- Por taxa (chamados por 1.000 postes), todos ficam em ~0,55: prever **onde cada poste falha mais** é
-  bem mais difícil do que prever onde há mais volume.
+- O `poisson_glm` (regressão de Poisson sobre contínuas em log + `rpa` one-hot + mês cíclico) é o único modelo que **vence a melhor regra na validação recente** (`8,67 < 8,93`) e tem o **menor overfitting** (`gap` médio na CV de `+0,92`, contra `+2,10` a `+3,22` das árvores), além de atingir MAE de **8,07** no teste (abaixo da meta de 8,66) e $R^2$ de **0,893**.
+- Na **precisão no top 10%** no teste, `poisson_glm` e `random_forest` fazem `0,80` e `hist_gb_poisson` faz `0,815` (praticamente empatados com a persistência em `0,806`): para "quais 9 bairros vão ter mais chamados", repetir o mês atual já é forte, e o ganho principal do GLM está em errar menos o volume sem sobreajustar.
+- Os modelos de árvore têm erro bem menor no ajuste (`5,07` a `6,38`) que na validação de 2024 (`9,33` a `9,60`), evidenciando *overfitting* em séries curtas e persistentes mesmo após regularização na busca de hiperparâmetros.
+- Por taxa (chamados por 1.000 postes), todos ficam em ~0,55 no top 10%: prever **onde cada poste falha mais** é bem mais difícil do que prever onde há mais volume.
 
 **Saídas** (em `models/`, pequenas, vão para o Git para a API funcionar logo depois do clone):
 `risco_por_bairro.csv` (risco de cada bairro por contagem e por taxa), `metadados.json` (modelo,
@@ -271,7 +274,56 @@ Como rodar tudo: [`applications/README.md`](../README.md).
 
 ---
 
-## 8. Situação
+## 8. Modelo de rota da cascata em Y (26/11)
+
+`src/prever_rota.py` responde a pergunta da cascata: **o pedestre que acabou de passar pelo S1 vai para
+o braço esquerdo ou para o direito?** É o ML que fecha o ciclo com o embarcado: a placa manda
+`g17/poste/P01/evento` com a distância medida no S1, o serviço responde `g17/poste/P01/rota` com o braço e a
+confiança, e o firmware acende esse braço antes de o pedestre chegar. Cada travessia confirmada pelo S2
+volta como `g17/poste/P01/travessia` e entra no banco do coletor, que é a base de treino.
+
+| Modo | O que faz |
+|---|---|
+| `prever_rota.py gerar` | Gera 800 travessias sintéticas (`data/processed/travessias_sinteticas.csv`) com o mesmo modelo do simulador (`applications/simulador/cascata.py`) |
+| `prever_rota.py treinar` | Junta as travessias do banco (placa = origem vazia/"real", simulador = "simulador") com as sintéticas, compara modelos, registra no MLflow (experimento e modelo `rota_pedestre`) e salva `models/modelo_rota.joblib` + `models/metadados_rota.json` |
+| `prever_rota.py servir` | Assina `.../evento`, responde `.../rota` e **treina de novo sozinho** quando chegam 30 travessias novas no banco (`RETREINO_NOVAS`), conferindo a cada 5 min (`RETREINO_S`). É o requisito de consumir automaticamente os dados novos do embarcado |
+
+**Entradas:** `dist_s1` (em que lado da rua o pedestre passou pelo S1) e a hora do dia (seno/cosseno).
+**Alvo:** o braço real, confirmado pelo S2 (disparou = esquerda; não disparou em 4 s = direita).
+**Validação:** treino com os 75% mais antigos e teste com os 25% mais recentes; escolha pela acurácia média
+numa validação cruzada estratificada de 5 partes, dentro do treino.
+
+**Resultado com os dados de hoje** (800 sintéticas + 28 do simulador, 0 reais):
+
+| Modelo | Acurácia CV | Acurácia teste | Log loss teste |
+|---|---|---|---|
+| maioria (baseline) | 0,525 | 0,541 | 6,34 |
+| regra do lado (< 5 cm = direita) | 0,857 | 0,816 | 2,54 |
+| **regressão logística** (escolhida) | 0,852 | 0,816 | **0,51** |
+| árvore rasa (profundidade 3) | 0,852 | 0,816 | 0,50 |
+
+**Leitura honesta (para o relatório):**
+- Os dados ainda são **simulados**: o simulador foi calibrado com o que a placa mediu em 26/11 (distâncias,
+  tempos do S2), e o padrão "perto do S1 vai para a direita" foi colocado nele com 85% de consistência. Por
+  isso o modelo chega aos mesmos ~85% da regra: ele reaprende o padrão que a simulação tem. Isso valida o
+  **encanamento** (placa → evento → modelo → rota → placa → travessia → retreino), não a capacidade de prever
+  pedestres de verdade.
+- O ganho do modelo sobre a regra fixa é a **confiança calibrada** (log loss 0,51 contra 2,54): o firmware só
+  usa previsões com confiança ≥ 0,5, e o modelo diz quando está em dúvida (perto dos 5 cm). Ele também
+  **descobre o limiar sozinho** com os dados reais: se na maquete o padrão estiver invertido ou o limiar for
+  outro, o retreino corrige, e a regra fixa não.
+- No dia da apresentação, com a maquete: coletar ~10 min de travessias reais (`origem` vazia no banco),
+  rodar `prever_rota.py treinar` e apresentar as métricas só nos dados reais (o treino mostra
+  `teste_reais_*` quando há pelo menos 30 reais no teste).
+- Teste ponta a ponta feito em casa (26/11): `P01` simulado + serviço de rota + coletor, o modelo previu
+  todas as travessias e acertou 7 de 9; o dashboard mostra o acerto ao vivo.
+
+**API:** `GET /rota?dist_s1=4.2` → `{"direcao_provavel": "direita", "confianca": 0.86, ...}` e
+`GET /rota/metricas` (treino + acurácia ao vivo, lida das travessias com `fonte = "modelo"`).
+
+---
+
+## 9. Situação
 
 - [x] `data/raw/` baixado (postes 2025 + 156 de 2022-2025 + dicionário)
 - [x] `src/preparar_dados.py` (normalização, cruzamento por bairro, alvo, split pelo mês do alvo)
@@ -282,9 +334,17 @@ Como rodar tudo: [`applications/README.md`](../README.md).
 - [x] `dags/risco_dag.py` (Airflow)
 - [x] `Dockerfile` + `docker-compose.yml` (em `applications/`)
 - [x] `config.json` (P01 = Boa Viagem; P02..P10 = bairros com riscos alto, médio e baixo)
-- [ ] Rodar o notebook de EDA de novo (as saídas são de antes da correção do split)
-- [ ] `notebooks/02_modelo.ipynb` com gráficos da comparação e da importância das variáveis, para o
-      relatório
+- [x] Notebook de EDA executado de novo com o split corrigido
+- [x] `notebooks/02_modelo.ipynb` com gráficos da comparação e dos coeficientes, para o relatório
+- [x] Modelo de rota da cascata em Y (`src/prever_rota.py`), serviço MQTT, API e retreino automático
+- [ ] Coletar travessias reais com a maquete e treinar a rota de novo com elas
 - [ ] Decidir qual ranking vira o risco publicado: contagem (padrão) ou taxa (`criterio_risco` no
       `config.json`)
 - [ ] Escolher um `id_ponto` real para o `P01` no `config.json` (precisa dos dados brutos)
+- [x] `ML-01`: validação cruzada temporal (`TimeSeriesSplit` por `mes_do_alvo`), métricas de ajuste vs. validação (`gap_val_ajuste_mae`) e $R^2$ no `treinar.py`
+- [x] `ML-13`: `ColumnTransformer` no `treinar.py` (`log1p`+escala só nas contínuas, `OneHotEncoder` em `rpa`, `sin`/`cos` em `mes_do_ano`)
+- [x] `ML-02`: Grid Search via `TimeSeriesSplit` com nested runs (`fase=tuning`) no MLflow e histórico por fold em `metadados.json`
+- [x] `ML-03`: baseline clássico (`baseline_linear` com `LinearRegression`) + artefatos (modelos, pesos, CSV de resíduos e PNGs) nas runs do MLflow
+- [ ] **Demais pendências da auditoria contra a rubrica oficial (ver [`docs/AUDITORIA_ML.md`](../../docs/AUDITORIA_ML.md)):**
+      gráficos de resíduos/Real×Previsto/R² (`ML-04`) e
+      consumo de dados vivos do embarcado no SQLite (`ML-05`).

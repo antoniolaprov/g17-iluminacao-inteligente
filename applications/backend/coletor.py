@@ -4,6 +4,10 @@ Coletor da central: assina o MQTT de todos os postes e guarda tudo em SQLite.
 - g17/poste/+/telemetria -> tabela telemetria (uma linha por mensagem)
 - g17/poste/+/status     -> tabela status     (online/offline)
 - g17/poste/+/risco      -> tabela risco      (o que o ML publicou)
+- g17/poste/+/travessia  -> tabela travessia  (cascata em Y: previsto x real; dado de treino do
+                            modelo de rota)
+- g17/poste/+/evento     -> tabela evento     (pedestre entrou pelo S1)
+- g17/poste/+/anomalia   -> tabela anomalia   (o que o detector de anomalias do ML publicou)
 
 Também gera alertas (bônus da disciplina) e os grava na tabela alertas:
 - o poste entrou em FALHA (desgaste acima de 0,70);
@@ -37,6 +41,13 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 SEM_TELEMETRIA_S = 30  # a telemetria chega a cada 5 s; 30 s sem nada = poste sumiu
 
 CAMPOS = ["id", "luz", "noite", "dist", "presenca", "desgaste", "pct", "estado", "pedido", "uptime"]
+# Campos da cascata em Y (firmware v3.0). Postes sem a cascata (simulador) mandam sem eles: vira NULL.
+CAMPOS_CASCATA = {
+    "dist_s2": "REAL", "presenca_s2": "INTEGER", "pct_base": "INTEGER", "pct_esq": "INTEGER",
+    "pct_dir": "INTEGER", "rota": "TEXT", "rota_fonte": "TEXT",
+}
+# "origem" só vem do simulador ("simulador"); o firmware não manda, então NULL = travessia real
+CAMPOS_TRAVESSIA = ["id", "dist_s1", "previsto", "fonte", "real", "acertou", "duracao_ms", "uptime", "origem"]
 
 ESQUEMA = """
 CREATE TABLE IF NOT EXISTS telemetria (
@@ -49,6 +60,12 @@ CREATE INDEX IF NOT EXISTS idx_telemetria_poste ON telemetria (id, recebido_em);
 CREATE TABLE IF NOT EXISTS status (recebido_em TEXT NOT NULL, id TEXT NOT NULL, status TEXT);
 CREATE TABLE IF NOT EXISTS risco  (recebido_em TEXT NOT NULL, id TEXT NOT NULL, payload TEXT);
 CREATE TABLE IF NOT EXISTS alertas (recebido_em TEXT NOT NULL, id TEXT NOT NULL, tipo TEXT, mensagem TEXT);
+CREATE TABLE IF NOT EXISTS travessia (
+    recebido_em TEXT NOT NULL, id TEXT NOT NULL, dist_s1 REAL, previsto TEXT, fonte TEXT,
+    real TEXT, acertou INTEGER, duracao_ms INTEGER, uptime INTEGER, origem TEXT
+);
+CREATE TABLE IF NOT EXISTS evento (recebido_em TEXT NOT NULL, id TEXT NOT NULL, payload TEXT);
+CREATE TABLE IF NOT EXISTS anomalia (recebido_em TEXT NOT NULL, id TEXT NOT NULL, payload TEXT);
 """
 
 
@@ -63,6 +80,15 @@ class Coletor:
         # compartilhada com trava é mais simples que uma conexão por thread.
         self.db = sqlite3.connect(DB_PATH, check_same_thread=False)
         self.db.executescript(ESQUEMA)
+        # Bancos criados antes da v3.0 nao tem as colunas da cascata: acrescenta sem perder nada
+        existentes = {linha[1] for linha in self.db.execute("PRAGMA table_info(telemetria)")}
+        for coluna, tipo in CAMPOS_CASCATA.items():
+            if coluna not in existentes:
+                self.db.execute(f"ALTER TABLE telemetria ADD COLUMN {coluna} {tipo}")
+        if "origem" not in {linha[1] for linha in self.db.execute("PRAGMA table_info(travessia)")}:
+            self.db.execute("ALTER TABLE travessia ADD COLUMN origem TEXT")
+        self.db.commit()
+        self.campos = CAMPOS + list(CAMPOS_CASCATA)
         self.trava = threading.Lock()
         self.ultimo_estado = {}      # id -> último estado visto
         self.ultima_telemetria = {}  # id -> time.time() da última telemetria
@@ -97,7 +123,7 @@ class Coletor:
             print(f"[MQTT] recusou a conexão: {codigo}", flush=True)
             return
         print(f"[MQTT] conectado a {MQTT_HOST}:{MQTT_PORT}; gravando em {DB_PATH}", flush=True)
-        for tipo in ("telemetria", "status", "risco"):
+        for tipo in ("telemetria", "status", "risco", "travessia", "evento", "anomalia"):
             cliente.subscribe(f"{MQTT_PREFIXO}/+/{tipo}", qos=1)
 
     def ao_receber(self, _cliente, _userdata, msg):
@@ -110,6 +136,18 @@ class Coletor:
                 self.tratar_status(poste_id, texto, retido=msg.retain)
             elif tipo == "risco":
                 self.gravar("INSERT INTO risco VALUES (?, ?, ?)", (agora(), poste_id, texto))
+            elif tipo == "travessia":
+                dados = json.loads(texto)
+                dados.setdefault("id", poste_id)
+                self.gravar(
+                    f"INSERT INTO travessia (recebido_em, {', '.join(CAMPOS_TRAVESSIA)}) "
+                    f"VALUES (?{', ?' * len(CAMPOS_TRAVESSIA)})",
+                    (agora(), *[dados.get(c) for c in CAMPOS_TRAVESSIA]),
+                )
+            elif tipo == "evento":
+                self.gravar("INSERT INTO evento VALUES (?, ?, ?)", (agora(), poste_id, texto))
+            elif tipo == "anomalia":
+                self.gravar("INSERT INTO anomalia VALUES (?, ?, ?)", (agora(), poste_id, texto))
         except Exception as erro:  # uma mensagem malformada não pode parar a coleta
             print(f"[ERRO] {msg.topic}: {erro}", flush=True)
 
@@ -117,8 +155,8 @@ class Coletor:
         dados = json.loads(texto)
         dados.setdefault("id", poste_id)
         self.gravar(
-            f"INSERT INTO telemetria (recebido_em, {', '.join(CAMPOS)}) VALUES (?{', ?' * len(CAMPOS)})",
-            (agora(), *[dados.get(c) for c in CAMPOS]),
+            f"INSERT INTO telemetria (recebido_em, {', '.join(self.campos)}) VALUES (?{', ?' * len(self.campos)})",
+            (agora(), *[dados.get(c) for c in self.campos]),
         )
         self.mensagens += 1
         self.ultima_telemetria[poste_id] = time.time()

@@ -105,6 +105,53 @@
       "top": 118.4,
       "left": -296.8,
       "attrs": {}
+    },
+    {
+      "type": "wokwi-led",
+      "id": "lumEsq",
+      "top": -150,
+      "left": 300,
+      "attrs": {
+        "color": "white",
+        "label": "Poste esquerdo"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rEsq",
+      "top": -95,
+      "left": 250,
+      "attrs": {
+        "value": "100"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "lumDir",
+      "top": -150,
+      "left": 400,
+      "attrs": {
+        "color": "white",
+        "label": "Poste direito"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rDir",
+      "top": -95,
+      "left": 350,
+      "attrs": {
+        "value": "100"
+      }
+    },
+    {
+      "type": "wokwi-hc-sr04",
+      "id": "us2",
+      "top": 260,
+      "left": -40,
+      "attrs": {
+        "distance": "200"
+      }
     }
   ],
   "connections": [
@@ -280,6 +327,66 @@
         "h57.6",
         "v-96.7"
       ]
+    ],
+    [
+      "esp:22",
+      "rEsq:1",
+      "white",
+      []
+    ],
+    [
+      "rEsq:2",
+      "lumEsq:A",
+      "white",
+      []
+    ],
+    [
+      "lumEsq:C",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "esp:23",
+      "rDir:1",
+      "white",
+      []
+    ],
+    [
+      "rDir:2",
+      "lumDir:A",
+      "white",
+      []
+    ],
+    [
+      "lumDir:C",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "us2:VCC",
+      "esp:3V3",
+      "red",
+      []
+    ],
+    [
+      "us2:GND",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "us2:TRIG",
+      "esp:2",
+      "purple",
+      []
+    ],
+    [
+      "us2:ECHO",
+      "esp:4",
+      "yellow",
+      []
     ]
   ],
   "dependencies": {}

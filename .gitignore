@@ -17,3 +17,12 @@ applications/ml/mlflow.db
 applications/ml/mlruns/
 mlruns/
 applications/backend/dados/
+
+# Parque de luminárias simulado: banco SQLite local e estado do simulador (gerados de novo com
+# "python applications/simulador/parque.py gerar"); o resumo da calibração fica no Git
+applications/ml/data/simulado/*
+!applications/ml/data/simulado/calibracao.json
+.pytest_cache/
+# Modelo do detector de anomalias: ~5 MB (o LOF guarda os vizinhos) e é retreinado sozinho pelo serviço
+# "anomalia" a cada 2.000 leituras novas (e treinado na hora se o arquivo não existir)
+applications/ml/models/modelo_anomalia.joblib

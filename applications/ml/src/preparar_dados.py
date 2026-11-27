@@ -23,6 +23,7 @@ import re
 import unicodedata
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -69,6 +70,18 @@ def normalizar_bairro(texto: str) -> str:
     sem_acento = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("ascii")
     normalizado = re.sub(r"\s+", " ", sem_acento).strip().upper()
     return CORRECOES_BAIRRO.get(normalizado, normalizado)
+
+
+def codificar_mes_ciclico(valores) -> np.ndarray:
+    """Converte mes_do_ano (1..12) em seno e cosseno para preservar continuidade dez->jan."""
+    meses = np.asarray(valores, dtype=float).ravel()
+    angulo = 2.0 * np.pi * meses / 12.0
+    return np.column_stack([np.sin(angulo), np.cos(angulo)])
+
+
+def nomes_mes_ciclico(_transformador, _nomes) -> np.ndarray:
+    """Nomes das colunas geradas por codificar_mes_ciclico para get_feature_names_out()."""
+    return np.array(["mes_sin", "mes_cos"], dtype=object)
 
 
 def carregar_postes() -> pd.DataFrame:

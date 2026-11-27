@@ -1,14 +1,16 @@
 # Central do Grupo 17 em containers.
 #
 #   cd applications
-#   docker compose up -d --build              # broker, coletor, MLflow e API (o essencial da demo)
+#   docker compose up -d --build              # o essencial: broker, coletor, MLflow, API, rota, anomalias,
+#                                             # PostgreSQL, parque de luminárias, ingestor, pipeline e painel do gestor
 #   docker compose --profile sim up -d        # + simulador de postes P02..P10
 #   docker compose --profile airflow up -d --build   # + Airflow (pipeline de ML; ~3 GB na 1a vez)
 #   docker compose run --rm treinar           # treina o modelo uma vez, sem Airflow
 #   docker compose run --rm publicar          # publica risco + comando no MQTT uma vez
 #
 # Portas no PC: 1883 MQTT (ESP32 e scripts), 9001 MQTT/WebSocket (dashboard),
-# 5000 MLflow, 8000 API de risco (docs em /docs), 8080 Airflow.
+# 5000 MLflow, 8000 API (docs em /docs), 8501 painel do gestor (Streamlit), 8080 Airflow.
+# O PostgreSQL não abre porta no PC: só os containers falam com ele (rede interna do compose).
 # Alertas no Telegram: crie applications/.env com TELEGRAM_TOKEN=... e TELEGRAM_CHAT_ID=...
 # (o .env está no .gitignore).
 
@@ -24,18 +26,40 @@ x-app: &app
     MQTT_PORT: "1883"
     MLFLOW_TRACKING_URI: http://mlflow:5000
     API_URL: http://api:8000
+    DB_PATH: /app/backend/dados/central.db
+    # banco do parque de luminárias (proposta: PostgreSQL); a senha só vale dentro da rede do compose
+    DATABASE_URL: postgresql+psycopg://g17:${POSTGRES_PASSWORD:-g17local}@postgres:5432/g17
     TZ: America/Recife
   depends_on:
-    - mosquitto
+    mosquitto:
+      condition: service_started
+    postgres:
+      condition: service_healthy
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: g17
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-g17local}
+      POSTGRES_DB: g17
+    volumes:
+      - pg_dados:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U g17 -d g17"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
   mosquitto:
     image: eclipse-mosquitto:2.0.21
     ports:
       - "1883:1883"
       - "9001:9001"
     volumes:
-      - ./broker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      # MOSQUITTO_CONF=mosquitto-ponte.conf liga a ponte com o HiveMQ (a placa sem regravar)
+      - ./broker/${MOSQUITTO_CONF:-mosquitto.conf}:/mosquitto/config/mosquitto.conf:ro
     restart: unless-stopped
 
   coletor:
@@ -43,7 +67,6 @@ services:
     command: python backend/coletor.py
     environment:
       <<: *app-env
-      DB_PATH: /app/backend/dados/central.db
       TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
     restart: unless-stopped
@@ -73,10 +96,59 @@ services:
       retries: 3
     restart: unless-stopped
 
+  rota:
+    <<: *app
+    # Modelo de rota da cascata em Y: responde .../evento com .../rota e treina de novo sozinho
+    # quando chegam travessias novas no banco do coletor
+    command: python ml/src/prever_rota.py servir
+    restart: unless-stopped
+
+  anomalia:
+    <<: *app
+    # Detector de anomalias: pontua a telemetria nova que o coletor grava no banco, publica
+    # .../anomalia e treina de novo sozinho quando chegam leituras novas (consome o embarcado ao vivo)
+    command: python ml/src/anomalia_telemetria.py servir
+    restart: unless-stopped
+
+  parque:
+    <<: *app
+    # Parque de 500 luminárias simuladas com degradação (proposta g.5): gera o histórico na 1ª vez
+    # (grava no PostgreSQL) e depois avança um dia simulado a cada PARQUE_DIA_S segundos, publicando
+    # g17/luminaria/<id>/telemetria no MQTT
+    command: python simulador/parque.py servir
+    environment:
+      <<: *app-env
+      PARQUE_DIA_S: ${PARQUE_DIA_S:-30}
+    restart: unless-stopped
+
+  ingestor:
+    <<: *app
+    # MQTT -> PostgreSQL: grava a telemetria das luminárias (proposta, item 01)
+    command: python backend/ingestor_parque.py
+    restart: unless-stopped
+
+  pipeline:
+    <<: *app
+    # O mesmo pipeline do DAG g17_falha_14d, em laço: valida, prevê a falha em 14 dias, prioriza com
+    # o score CPTED e planeja a dimerização a cada dia novo; treina o modelo se não houver um
+    command: python ml/src/pipeline_parque.py servir
+    restart: unless-stopped
+
+  gestor:
+    <<: *app
+    # Painel do gestor (proposta: Streamlit + mapa), consumindo a API
+    command: streamlit run dashboard_gestor/app.py --server.port 8501 --server.address 0.0.0.0 --server.headless true --browser.gatherUsageStats false
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+
   simulador:
     <<: *app
     profiles: ["sim"]
     command: python simulador/simulador.py
+    environment:
+      <<: *app-env
+      SIM_INCLUIR_P01: ${SIM_INCLUIR_P01:-0}   # 1 = simula também o P01 (sem a maquete por perto)
     restart: unless-stopped
 
   treinar:
@@ -107,9 +179,11 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/g17/ml/dags
       G17_ML_DIR: /opt/airflow/g17/ml
+      DB_PATH: /opt/airflow/g17/backend/dados/central.db
       MQTT_HOST: mosquitto
       MLFLOW_TRACKING_URI: http://mlflow:5000
       API_URL: http://api:8000
+      DATABASE_URL: postgresql+psycopg://g17:${POSTGRES_PASSWORD:-g17local}@postgres:5432/g17
       TZ: America/Recife
     volumes:
       - ./:/opt/airflow/g17
@@ -117,7 +191,9 @@ services:
       - mosquitto
       - mlflow
       - api
+      - postgres
     restart: unless-stopped
 
 volumes:
   mlflow_dados:
+  pg_dados:

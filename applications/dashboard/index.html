@@ -108,6 +108,18 @@
   .empty { color: var(--text-3); font-size: 14px; padding: 8px 0; }
   .risco-ml { margin-top: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-2); }
   .risco-ml strong { color: var(--text); }
+  .risco-ml.alerta { border-color: var(--critical); }
+  .risco-ml.alerta strong { color: var(--critical); }
+  .cascata { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: center; }
+  .cascata svg text { font: 12px system-ui, sans-serif; fill: var(--text-2); }
+  .cascata .lamp { transition: opacity .2s; }
+  .trav-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 10px 0; }
+  .trav-stats .v { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .trav-stats .d { font-size: 12px; color: var(--text-2); }
+  .trav-lista { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+  .trav-lista li { padding: 4px 0; border-top: 1px solid var(--border); color: var(--text-2); }
+  .trav-lista li:first-child { border-top: 0; }
+  @media (max-width: 700px) { .cascata { grid-template-columns: 1fr; } }
   .lamp-glow { transition: opacity .25s; }
   .falha .lamp-glow { animation: pisca .7s steps(2) infinite; }
   @keyframes pisca { 50% { opacity: .15; } }
@@ -171,6 +183,7 @@
           <div class="big" style="margin-top:10px"><span id="pct">—</span><small> % de brilho</small></div>
           <div class="meta" id="meta">—</div>
           <div class="risco-ml" id="risco-ml" hidden></div>
+          <div class="risco-ml" id="anomalia-ml" hidden></div>
         </div>
       </div>
     </section>
@@ -185,6 +198,35 @@
         <div class="card tile"><h2>Pedido da central</h2><div class="v" id="v-pedido">—</div><div class="d">piso de 70% à noite</div></div>
         <div class="card tile"><h2>Economia na sessão</h2><div class="v" id="v-eco">—</div><div class="d">vs. lâmpada sempre a 100% à noite</div></div>
         <div class="card tile"><h2>Tempo ligado</h2><div class="v" id="v-up">—</div><div class="d" id="d-online">status do poste</div></div>
+      </div>
+    </section>
+
+    <section class="card span-12" id="card-cascata" aria-labelledby="t-cascata" hidden>
+      <h2 id="t-cascata">Cascata em Y (maquete)</h2>
+      <div class="cascata">
+        <svg viewBox="0 0 300 210" width="300" height="210" role="img" aria-label="Rua em Y com os três postes">
+          <path d="M150 205 L150 120 L60 30 M150 120 L240 30" stroke="var(--border)" stroke-width="26" fill="none" stroke-linecap="round"/>
+          <path d="M150 205 L150 120 L60 30 M150 120 L240 30" stroke="var(--surface)" stroke-width="2" stroke-dasharray="6 6" fill="none"/>
+          <circle class="lamp" id="lamp-base" cx="185" cy="165" r="18" fill="var(--lamp)" opacity="0"/>
+          <circle class="lamp" id="lamp-esq" cx="45" cy="70" r="18" fill="var(--lamp)" opacity="0"/>
+          <circle class="lamp" id="lamp-dir" cx="255" cy="70" r="18" fill="var(--lamp)" opacity="0"/>
+          <circle cx="185" cy="165" r="5" fill="var(--text-2)"/><circle cx="45" cy="70" r="5" fill="var(--text-2)"/><circle cx="255" cy="70" r="5" fill="var(--text-2)"/>
+          <text x="196" y="190" id="txt-base">base —</text>
+          <text x="8" y="105" id="txt-esq">esquerdo —</text>
+          <text x="214" y="105" id="txt-dir">direito —</text>
+          <text x="122" y="200">S1</text>
+          <text x="80" y="22">S2</text>
+        </svg>
+        <div>
+          <div class="estado-nome" style="font-size:17px"><span id="cascata-rota">Sem pedestre</span></div>
+          <div class="estado-desc" id="cascata-fonte">Os braços pré-acendem quando alguém passa no S1.</div>
+          <div class="trav-stats">
+            <div><div class="v" id="trav-total">0</div><div class="d">travessias vistas</div></div>
+            <div><div class="v" id="trav-modelo">0</div><div class="d">com previsão do modelo</div></div>
+            <div><div class="v" id="trav-acerto">—</div><div class="d">acerto do modelo</div></div>
+          </div>
+          <ul class="trav-lista" id="trav-lista"><li>Nenhuma travessia ainda</li></ul>
+        </div>
       </div>
     </section>
 
@@ -240,7 +282,7 @@ const SEM_DADOS_MS = 15000;         // telemetria chega a cada 5 s
 const ESTADOS = {
   DIA:        { cor: '--good',     icone: '☀', desc: 'Dia: luminária apagada' },
   DIMERIZADO: { cor: '--warning',  icone: '◐', desc: 'Noite sem movimento: economizando' },
-  PEDESTRE:   { cor: '--good',     icone: '🚶', desc: 'Pedestre detectado: luz a 100%' },
+  PEDESTRE:   { cor: '--good',     icone: '🚶', desc: 'Pedestre detectado: luz a 100% no caminho dele' },
   NOITE:      { cor: '--good',     icone: '☾', desc: 'Noite: potência pedida pela central' },
   FALHA:      { cor: '--critical', icone: '⚠', desc: 'Falha na lâmpada: chamar manutenção' },
   FAILSAFE:   { cor: '--failsafe', icone: '⛨', desc: 'Sem central: 100% por segurança' },
@@ -259,6 +301,11 @@ function lerConfig() {
 function salvarConfig(c) { try { localStorage.setItem('g17-cfg', JSON.stringify(c)); } catch {} }
 
 let cfg = lerConfig();
+// index.html?broker=ws://localhost:9001 já abre no broker certo (usado pelo INICIAR_DEMO.bat)
+try {
+  const brokerUrl = new URLSearchParams(location.search).get('broker');
+  if (brokerUrl) { cfg.url = brokerUrl; salvarConfig(cfg); }
+} catch {}
 let cliente = null;
 let selecionado = null;
 const postes = {};   // id -> { ultimo, recebidoEm, status, hist: [], somaPct, nNoite }
@@ -360,7 +407,8 @@ function conectar() {
   cliente.on('connect', () => {
     setBroker('ok');
     registrar('Conectado ao broker');
-    cliente.subscribe([`${cfg.prefix}/+/telemetria`, `${cfg.prefix}/+/status`, `${cfg.prefix}/+/risco`]);
+    cliente.subscribe([`${cfg.prefix}/+/telemetria`, `${cfg.prefix}/+/status`, `${cfg.prefix}/+/risco`,
+                       `${cfg.prefix}/+/travessia`, `${cfg.prefix}/+/anomalia`]);
   });
   cliente.on('reconnect', () => setBroker('conectando'));
   cliente.on('offline', () => setBroker('erro'));
@@ -389,9 +437,23 @@ function aoReceber(topico, payload) {
   if (tipo === 'status') {
     if (p.ultimo && p.status !== texto && situacao(p) !== 'online') registrar(`Poste ${id} ficou ${texto}`);
     p.status = texto;
+  } else if (tipo === 'travessia') {
+    // Cascata em Y: travessia completa (previsto x real), publicada pelo poste
+    let t;
+    try { t = JSON.parse(texto); } catch { return; }
+    (p.travessias ||= []).push({ t: Date.now(), ...t });
+    if (p.travessias.length > 200) p.travessias.shift();
+    registrar(`Poste ${id}: travessia para a ${t.real}` + (t.acertou === 1 ? ' (modelo acertou)' : t.acertou === 0 ? ' (modelo errou)' : ''));
   } else if (tipo === 'risco') {
     // Publicado (retido) pelo ML: applications/ml/src/publicar_risco.py
     try { p.risco = JSON.parse(texto); } catch { return; }
+  } else if (tipo === 'anomalia') {
+    // Publicado (retido) pelo detector de anomalias: applications/ml/src/anomalia_telemetria.py
+    let a;
+    try { a = JSON.parse(texto); } catch { return; }
+    const emAlerta = x => x && (x.alerta ?? (x.anomalias > 0 ? 1 : 0)) === 1;
+    if (emAlerta(a) && !emAlerta(p.anomalia)) registrar(`Poste ${id}: anomalia detectada pelo ML (${a.motivo})`);
+    p.anomalia = a;
   } else if (tipo === 'telemetria') {
     let d;
     try { d = JSON.parse(texto); } catch { return; }
@@ -450,9 +512,48 @@ function renderizarPostes() {
     const cor = sit === 'online' ? css((ESTADOS[est] || ESTADOS.INICIANDO).cor) : css('--idle');
     b.innerHTML = `<span class="dot" style="background:${cor}"></span><strong></strong><small></small>`;
     b.querySelector('strong').textContent = id;
-    b.querySelector('small').textContent = sit === 'online' ? est : sit;
+    b.querySelector('small').textContent = (sit === 'online' ? est : sit) + (p.anomalia && (p.anomalia.alerta ?? (p.anomalia.anomalias > 0 ? 1 : 0)) === 1 ? ' ⚠' : '');
     b.addEventListener('click', () => selecionar(id));
     box.appendChild(b);
+  }
+}
+
+
+// Cascata em Y (firmware v3.0): só aparece para postes que mandam pct_esq/pct_dir
+const FONTES = {
+  aguardando: 'Pedestre no S1: os dois braços pré-acesos até saber o caminho',
+  modelo: 'O modelo de ML previu o caminho e acendeu esse braço antes de o pedestre chegar',
+  confirmada: 'Caminho confirmado pelo sensor (S2 = esquerda; sem S2 em 4 s = direita)',
+};
+function renderizarCascata(p) {
+  const card = $('card-cascata');
+  const d = p && p.ultimo;
+  const tem = d && d.pct_esq !== undefined;
+  card.hidden = !tem;
+  if (!tem) return;
+  for (const [id, pct] of [['base', d.pct_base], ['esq', d.pct_esq], ['dir', d.pct_dir]]) {
+    $('lamp-' + id).setAttribute('opacity', Math.pow((pct || 0) / 100, 2.2).toFixed(2));
+    $('txt-' + id).textContent = `${{ base: 'base', esq: 'esquerdo', dir: 'direito' }[id]} ${pct ?? '—'}%`;
+  }
+  $('cascata-rota').textContent = d.rota && d.rota !== 'nenhuma'
+    ? `Rota: ${d.rota}` : (d.rota_fonte === 'aguardando' ? 'Aguardando o caminho' : 'Sem pedestre');
+  $('cascata-fonte').textContent = FONTES[d.rota_fonte] || 'Os braços pré-acendem quando alguém passa no S1.';
+
+  const trav = p.travessias || [];
+  const doModelo = trav.filter(t => t.fonte === 'modelo' && t.acertou >= 0);
+  const acertos = doModelo.filter(t => t.acertou === 1).length;
+  $('trav-total').textContent = trav.length;
+  $('trav-modelo').textContent = doModelo.length;
+  $('trav-acerto').textContent = doModelo.length ? `${Math.round(100 * acertos / doModelo.length)}%` : '—';
+  const lista = $('trav-lista');
+  lista.innerHTML = '';
+  if (!trav.length) { lista.innerHTML = '<li>Nenhuma travessia ainda</li>'; return; }
+  for (const t of trav.slice(-6).reverse()) {
+    const li = document.createElement('li');
+    const previsao = t.previsto && t.previsto !== 'nenhuma' ? `previu ${t.previsto} (${t.fonte})` : 'sem previsão';
+    const resultado = t.acertou === 1 ? ' · acertou' : (t.acertou === 0 ? ' · errou' : '');
+    li.textContent = `${hora(t.t)} · S1 a ${fmt(t.dist_s1, 1)} cm · foi para a ${t.real} · ${previsao}${resultado}`;
+    lista.appendChild(li);
   }
 }
 
@@ -468,7 +569,18 @@ function renderizar() {
     caixaRisco.querySelector('span').textContent =
       `${r.bairro} · ${fmt(r.previsao_chamados, 0)} chamados previstos em ${r.mes_previsto}`;
   }
-  if (!p || !p.ultimo) return;
+  const caixaAnom = $('anomalia-ml');
+  caixaAnom.hidden = !(p && p.anomalia);
+  if (p && p.anomalia) {
+    const a = p.anomalia, alerta = (a.alerta ?? (a.anomalias > 0 ? 1 : 0)) === 1;
+    caixaAnom.classList.toggle('alerta', alerta);
+    caixaAnom.innerHTML = `Anomalia na telemetria (ML): <strong></strong><br><span></span>`;
+    caixaAnom.querySelector('strong').textContent = alerta ? `SIM · ${a.motivo}` : 'nenhuma';
+    caixaAnom.querySelector('span').textContent = alerta
+      ? `${a.anomalias} de ${a.leituras} leituras recentes fora do normal · ${a.modelo}`
+      : `${a.leituras} leituras recentes dentro do normal · ${a.modelo}`;
+  }
+  if (!p || !p.ultimo) { renderizarCascata(p); return; }
   const d = p.ultimo, sit = situacao(p);
   const e = ESTADOS[d.estado] || ESTADOS.INICIANDO;
 
@@ -489,6 +601,7 @@ function renderizar() {
   const s = d.uptime, hh = Math.floor(s / 3600), mm = Math.floor(s % 3600 / 60), ss = s % 60;
   $('v-up').textContent = hh ? `${hh}h ${mm}min` : `${mm}min ${ss}s`;
   $('d-online').textContent = `poste ${sit}`;
+  renderizarCascata(p);
 
   const tab = $('tab');
   tab.innerHTML = '';

@@ -1,0 +1,71 @@
+{
+  "_comentario": "Premissas do simulador do parque de luminárias (proposta, seção g.5 e item 06 do backlog). Cada parâmetro está explicado, com a fonte, em docs/PREMISSAS_SIMULADOR.md. Mudar um valor aqui muda os dados gerados; o teste de robustez do modelo usa variações destes valores.",
+  "semente": 17,
+  "luminarias": 500,
+  "luminarias_minimo_por_bairro": 15,
+  "inicio_historico": "2024-01-01",
+  "dias_historico": 900,
+  "aquecimento_dias": 1095,
+  "bairros": {
+    "BOA VIAGEM":   {"lat": -8.1190, "lon": -34.9020, "raio_m": 1400},
+    "SANTO AMARO":  {"lat": -8.0480, "lon": -34.8830, "raio_m": 600},
+    "BOA VISTA":    {"lat": -8.0600, "lon": -34.8880, "raio_m": 500},
+    "CASA AMARELA": {"lat": -8.0280, "lon": -34.9180, "raio_m": 600},
+    "ENCRUZILHADA": {"lat": -8.0380, "lon": -34.8930, "raio_m": 500},
+    "GRACAS":       {"lat": -8.0480, "lon": -34.9010, "raio_m": 500},
+    "TORRE":        {"lat": -8.0480, "lon": -34.9120, "raio_m": 500},
+    "JAQUEIRA":     {"lat": -8.0370, "lon": -34.9050, "raio_m": 400},
+    "APIPUCOS":     {"lat": -8.0200, "lon": -34.9330, "raio_m": 500},
+    "MONTEIRO":     {"lat": -8.0280, "lon": -34.9280, "raio_m": 400}
+  },
+  "potencia_nominal_w": {"valores": [60, 100, 150], "probabilidades": [0.4, 0.4, 0.2]},
+  "classe_via": {
+    "classes": ["P1", "P2", "P3", "P4", "P5", "P6"],
+    "probabilidades": [0.05, 0.10, 0.25, 0.30, 0.20, 0.10],
+    "iluminancia_min_lx": {"P1": 20, "P2": 15, "P3": 10, "P4": 7.5, "P5": 5, "P6": 3},
+    "margem_projeto": [1.15, 2.0]
+  },
+  "cpted": {
+    "polos_por_bairro": [3, 6],
+    "alcance_polo_m": 250,
+    "peso_vulnerabilidade_bairro": 0.6,
+    "fracao_sem_dados": 0.03
+  },
+  "temperatura": {
+    "ambiente_noite_c": 25.5,
+    "amplitude_sazonal_c": 1.8,
+    "dia_mais_quente": 40,
+    "ruido_ambiente_c": 1.0,
+    "elevacao_driver_c": 28.0,
+    "dispersao_dissipacao": 0.15,
+    "ruido_medicao_c": 1.5
+  },
+  "arrhenius": {"ea_ev": 0.7, "t_ref_c": 55.0},
+  "l70": {"horas_ref": 50000},
+  "driver": {
+    "weibull_forma": 2.0,
+    "escala_horas": 120000,
+    "sigma_latente": 0.6,
+    "peso_dano": 0.8,
+    "multiplicador_cintilacao": 10.0
+  },
+  "surtos": {
+    "taxa_dia": 0.01,
+    "chuva_por_mes": {"1": 0.6, "2": 0.7, "3": 0.9, "4": 1.4, "5": 1.6, "6": 1.7, "7": 1.5, "8": 1.0, "9": 0.7, "10": 0.5, "11": 0.5, "12": 0.5},
+    "dano": [0.03, 0.20],
+    "fracao_com_dps": 0.5,
+    "protecao_dps": 0.7,
+    "deteccao": 0.9
+  },
+  "dano_termico_dia": 0.00008,
+  "cintilacao": {"limiar_dano": 0.85, "prob_inicio_dia": 0.1},
+  "falha_externa_fracao": 0.15,
+  "idade_inicial_horas_max": 45000,
+  "reparo_dias": [2, 10],
+  "calibracao": {
+    "_fonte": "Chamados de lâmpada apagada da Central 156 (Emlurb, 2022-2025) / 111.665 postes do cadastro: média de 2,39% dos postes por mês. Sazonalidade = chamados médios de cada mês do ano / média geral (ver applications/ml/data/processed/risco_bairro_mes.csv).",
+    "taxa_falha_mensal_alvo": 0.0239,
+    "sazonalidade_mensal": {"1": 0.996, "2": 0.990, "3": 0.949, "4": 1.020, "5": 1.015, "6": 1.032, "7": 1.184, "8": 1.153, "9": 1.034, "10": 0.968, "11": 0.845, "12": 0.813}
+  },
+  "falhas_de_medicao": {"fracao_ausente": 0.005, "fracao_leitura_invalida": 0.002}
+}

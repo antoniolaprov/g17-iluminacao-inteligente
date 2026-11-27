@@ -12,9 +12,21 @@ O dia é acelerado: um ciclo dia/noite inteiro dura SIM_CICLO_MIN minutos (padr�
 para a demonstração mostrar o anoitecer em poucos minutos. O poste P02 tem o desgaste
 acelerado e entra em FALHA em poucos minutos, para mostrar o alerta.
 
+O poste P06 (SIM_DEFEITO_LUZ) tem um defeito que as regras do firmware não pegam: em 1 de cada 3
+dias simulados, o sensor de luz trava numa leitura baixa. O poste acha que é noite o dia inteiro e
+fica aceso de dia, sem mudar de estado. Quem percebe é o detector de anomalias
+(applications/ml/src/anomalia_telemetria.py).
+
+Sem a maquete por perto (trabalhando de casa), SIM_INCLUIR_P01=1 simula também o P01, para o
+dashboard e o ML terem o poste da maquete. O P01 simulado tem a cascata em Y do firmware v3.0
+(3 postes, S1, S2, eventos de entrada, travessias e obediência ao tópico .../rota do modelo),
+ver cascata.py. Não use com a placa ligada no mesmo broker: os dois publicariam como P01.
+
 Uso:
     python applications/simulador/simulador.py
-    (variáveis: MQTT_HOST, MQTT_PORT, SIM_POSTES (padrão 9 -> P02..P10), SIM_CICLO_MIN)
+    (variáveis: MQTT_HOST, MQTT_PORT, SIM_POSTES (padrão 9 -> P02..P10), SIM_CICLO_MIN,
+     SIM_INCLUIR_P01 (padrão 0), SIM_CONSISTENCIA (padrão 0.85), SIM_PEDESTRE_S (padrão 12),
+     SIM_DEFEITO_LUZ (padrão P06; vazio = nenhum poste com o sensor de luz travando))
 """
 
 import json
@@ -22,15 +34,21 @@ import math
 import os
 import random
 import sys
+import threading
 import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from cascata import CascataY  # noqa: E402
 from comum import MQTT_HOST, MQTT_PORT, novo_cliente, topico  # noqa: E402
 
 QTD_POSTES = int(os.getenv("SIM_POSTES", "9"))
+INCLUIR_P01 = os.getenv("SIM_INCLUIR_P01", "0") == "1"
 CICLO_S = float(os.getenv("SIM_CICLO_MIN", "6")) * 60
 INTERVALO_S = 5
+DEFEITO_LUZ = {p.strip() for p in os.getenv("SIM_DEFEITO_LUZ", "P06").split(",") if p.strip()}
+LUZ_TRAVADA = 180   # leitura em que o sensor defeituoso trava (parece noite)
 
 # Mesmos parâmetros do firmware (placa física), ver docs/CONTEXTO_PARA_IA.md seção 8
 LIMIAR_NOITE = 2500
@@ -82,7 +100,13 @@ class PosteVirtual:
             self.pedido = valor
             print(f"[{self.id}] comando recebido: potência {valor}%", flush=True)
 
+    def sensor_travado(self, agora: float) -> bool:
+        """Defeito do SIM_DEFEITO_LUZ: o sensor trava no 3º de cada 3 dias simulados."""
+        return self.id in DEFEITO_LUZ and int((agora - self.inicio) / CICLO_S) % 3 == 2
+
     def ler_luz(self, agora: float) -> int:
+        if self.sensor_travado(agora):
+            return LUZ_TRAVADA
         # Senoide do dia simulado: meio-dia = máximo, meia-noite = mínimo
         fracao = ((agora - self.inicio) / CICLO_S + 0.25 + self.fase) % 1.0
         sol = max(0.0, math.sin(2 * math.pi * (fracao - 0.25) + math.pi / 2))
@@ -134,8 +158,53 @@ class PosteVirtual:
         self.cliente.disconnect()
 
 
+class PosteMaquete(PosteVirtual):
+    """O P01 da maquete: poste simples + cascata em Y (3 postes, S1, S2), como o firmware v3.0."""
+
+    def __init__(self, numero: int):
+        super().__init__(numero)
+        self.ritmo_desgaste = 0.0005            # a maquete não deve cair em FALHA durante a coleta
+        self.desgaste = 0.31                    # valor medido no potenciômetro em 26/11
+        self.cascata = CascataY(self.id, self.publicar_cascata)
+        threading.Thread(target=self.rodar_cascata, daemon=True).start()
+
+    def publicar_cascata(self, tipo: str, dados: dict) -> None:
+        self.cliente.publish(topico(self.id, tipo), json.dumps(dados, separators=(",", ":")), qos=1)
+        if tipo == "travessia":
+            print(f"[{self.id}] travessia: {dados['real']:<8} (dist_s1 {dados['dist_s1']} cm, "
+                  f"previsto {dados['previsto']}, fonte {dados['fonte']})", flush=True)
+
+    def rodar_cascata(self) -> None:
+        while True:
+            self.cascata.tick()
+            time.sleep(0.05)
+
+    def ao_conectar(self, cliente, userdata, flags, codigo, props):
+        super().ao_conectar(cliente, userdata, flags, codigo, props)
+        if not codigo.is_failure:
+            cliente.subscribe(topico(self.id, "rota"), qos=1)
+
+    def ao_receber(self, cliente, userdata, msg):
+        if msg.topic.endswith("/rota"):
+            self.cascata.receber_rota(msg.payload.decode("utf-8", "replace"))
+        else:
+            super().ao_receber(cliente, userdata, msg)
+
+    def passo(self) -> dict:
+        dados = super().passo()
+        piso = max(self.pedido, PISO_PCT)
+        c = self.cascata.estado(bool(dados["noite"]), piso)
+        dados.update({k: c[k] for k in ("dist", "presenca")})
+        dados["pct"] = c["pct_base"]
+        if dados["noite"] and dados["estado"] != "FALHA":
+            dados["estado"] = "PEDESTRE" if c["pedestre"] else ("DIMERIZADO" if piso < 100 else "NOITE")
+        dados.update({k: c[k] for k in ("dist_s2", "presenca_s2", "pct_base", "pct_esq", "pct_dir",
+                                       "rota", "rota_fonte")})
+        return dados
+
+
 def main() -> None:
-    postes = [PosteVirtual(n) for n in range(2, 2 + QTD_POSTES)]
+    postes = ([PosteMaquete(1)] if INCLUIR_P01 else []) + [PosteVirtual(n) for n in range(2, 2 + QTD_POSTES)]
     print(f"Simulando {len(postes)} postes ({postes[0].id} a {postes[-1].id}) em {MQTT_HOST}:{MQTT_PORT}; "
           f"um dia simulado = {CICLO_S / 60:.0f} min", flush=True)
     for p in postes:
