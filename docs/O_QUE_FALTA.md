@@ -118,7 +118,10 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
   | Antônio Augusto | IoT e Engenharia de Dados | T3, T10, T11, T12 |
 - **Pronto quando:** todos os 7 aparecem em `git shortlog -sn --all`.
 
-### ⬜ T7 · Juntar a `fase2-central-ml` na `main` 🤝 (decisão do representante)
+### 🟡 T7 · Juntar a `fase2-central-ml` na `main` 🤝 (decisão do representante)
+> **27/11:** o pull request foi aberto em https://github.com/antoniolaprov/g17-iluminacao-inteligente/pull/1
+> (sem conflitos: a `main` não tem commits próprios). **Falta:** o representante fazer o merge, de
+> preferência depois que todos tiverem dado push no que fizeram, e antes de 03/12.
 - **Por quê:** o repositório é público, e a branch padrão, que é o que os professores abrem, é a **`main`**.
   A `fase2-central-ml` tem pelo menos 16 commits que ainda não estão na `main`.
 - **O que fazer:**
