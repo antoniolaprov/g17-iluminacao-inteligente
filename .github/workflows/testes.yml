@@ -1,0 +1,33 @@
+name: Testes da central
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    name: pytest (Python 3.12)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Preparar Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: applications/requirements-central.txt
+
+      - name: Instalar dependências da central
+        run: python -m pip install -r applications/requirements-central.txt
+
+      - name: Executar testes
+        run: python -m pytest applications/tests -q
