@@ -404,3 +404,14 @@ def pipeline_info(limite: int = Query(20, ge=1, le=200)):
     df = bp.ler("SELECT * FROM pipeline_execucao ORDER BY executado_em DESC LIMIT :n", n=limite)
     df["detalhes"] = df["detalhes"].map(lambda t: json.loads(t) if t else None)
     return _registros(df)
+
+
+@app.get("/zonas")
+def zonas_historicas():
+    """K-Means descritivo dos bairros; independente do parque simulado e de comandos."""
+    from zonas_prioritarias import carregar
+    try:
+        bairros, metadados = carregar()
+    except (OSError, ValueError, KeyError) as erro:
+        raise HTTPException(503, "Zonas históricas indisponíveis. Rode ml/src/zonas_prioritarias.py. " + str(erro)) from erro
+    return {"metadados": metadados, "bairros": _registros(bairros)}

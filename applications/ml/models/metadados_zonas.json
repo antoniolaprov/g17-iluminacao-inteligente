@@ -1,0 +1,104 @@
+{
+  "algoritmo": "KMeans",
+  "sklearn": "1.9.1",
+  "semente": 17,
+  "n_init": 20,
+  "features": [
+    "chamados_media_mensal",
+    "total_postes"
+  ],
+  "transformacao": "log1p + StandardScaler",
+  "periodo": {
+    "inicio": "2024-12",
+    "fim": "2025-11",
+    "meses": 12
+  },
+  "bairros": 94,
+  "k": 3,
+  "criterio_k": "maior silhouette entre k=2..6 (limitado pela amostra)",
+  "silhouette": 0.5332181908675953,
+  "candidatos": [
+    {
+      "k": 2,
+      "silhouette": 0.5226400161245696,
+      "inercia": 79.33831225739611
+    },
+    {
+      "k": 3,
+      "silhouette": 0.5332181908675953,
+      "inercia": 57.41084642667845
+    },
+    {
+      "k": 4,
+      "silhouette": 0.4396205122083348,
+      "inercia": 42.79471984751326
+    },
+    {
+      "k": 5,
+      "silhouette": 0.4504087529621201,
+      "inercia": 30.81588093974452
+    },
+    {
+      "k": 6,
+      "silhouette": 0.4205395495847449,
+      "inercia": 23.455972101420954
+    }
+  ],
+  "estabilidade": {
+    "sementes": [
+      27,
+      37,
+      47,
+      57
+    ],
+    "ari": [
+      1.0,
+      0.9334910439288958,
+      0.9334910439288958,
+      1.0
+    ],
+    "ari_minimo": 0.9334910439288958
+  },
+  "grupos": [
+    {
+      "zona": "Z01",
+      "bairros": 35,
+      "chamados_media_por_bairro": 66.0047619047619,
+      "postes_media_por_bairro": 2207.7714285714287,
+      "chamados_total": 27722,
+      "postes_total": 77272,
+      "taxa_1000_postes": 29.896555889153472,
+      "centro_chamados": 55.92159246403488,
+      "centro_postes": 1957.8102122851406
+    },
+    {
+      "zona": "Z02",
+      "bairros": 53,
+      "chamados_media_por_bairro": 14.183962264150944,
+      "postes_media_por_bairro": 523.2830188679245,
+      "chamados_total": 9021,
+      "postes_total": 27734,
+      "taxa_1000_postes": 27.10571861253335,
+      "centro_chamados": 12.71264167224859,
+      "centro_postes": 484.5206029099585
+    },
+    {
+      "zona": "Z03",
+      "bairros": 6,
+      "chamados_media_por_bairro": 0.9305555555555557,
+      "postes_media_por_bairro": 1109.8333333333333,
+      "chamados_total": 67,
+      "postes_total": 6659,
+      "taxa_1000_postes": 0.8384642338689494,
+      "centro_chamados": 0.5585636155471112,
+      "centro_postes": 318.2034302960803
+    }
+  ],
+  "natureza": "Perfis descritivos de demanda histórica; não são regiões contíguas nem risco de falha.",
+  "efeito_operacional": "Nenhum comando MQTT ou alteração de prioridade CPTED/dimerização.",
+  "fontes": {
+    "risco_bairro_mes.csv": "36eb7334d936f6822e920e4a68988a587cd0c1ef46184e1c01b78237416d4892",
+    "postes_por_bairro.csv": "62a2edfe3978295c7f44e57532e4bfc110341c12ebe0646b3a0e1f9d73f4549c"
+  },
+  "csv_sha256": "e0bf7b3711101855178fdb6f87c396674e2090d76bbcac48879c88dfd74d4a6d"
+}

@@ -59,6 +59,10 @@ Números completos na seção 10.0 do [contexto](CONTEXTO_PARA_IA.md) e no noteb
   entregável de consumir dados novos do embarcado.
 - **Modelo de rota da cascata em Y.** Faz parte da demonstração da maquete (Embarcados).
 
+- **Perfis históricos por K-Means (T19, 27/11).** Complemento descritivo dos 94 bairros por chamados e
+  postes, com notebook, API e painel. Apoia a leitura da demanda sem substituir os critérios AHP,
+  o modelo de falha ou os pisos de dimerização. Detalhes em [ZONAS_PRIORITARIAS.md](ZONAS_PRIORITARIAS.md).
+
 ## 3. Divergências que continuam, justificadas
 
 | Divergência | Justificativa |

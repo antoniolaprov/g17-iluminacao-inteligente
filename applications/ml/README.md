@@ -348,3 +348,18 @@ numa validação cruzada estratificada de 5 partes, dentro do treino.
 - [ ] **Demais pendências da auditoria contra a rubrica oficial (ver [`docs/AUDITORIA_ML.md`](../../docs/AUDITORIA_ML.md)):**
       gráficos de resíduos/Real×Previsto/R² (`ML-04`) e
       consumo de dados vivos do embarcado no SQLite (`ML-05`).
+
+
+## Zonas históricas por K-Means (T19)
+
+Execute `python applications/ml/src/zonas_prioritarias.py` na raiz para gerar os perfis dos **94 bairros**
+com os últimos 12 meses observados e o cadastro de postes. As saídas `models/zonas_bairros.csv` e
+`models/metadados_zonas.json` são pequenas e versionadas; não há dependências novas.
+
+A API serve **GET `/zonas`** e o gestor tem a aba **Zonas**, com gráfico, filtro de grupos e CSV.
+Se os dados processados mudarem, gere novamente os artefatos e reexecute
+[`04_zonas_prioritarias.ipynb`](notebooks/04_zonas_prioritarias.ipynb). O notebook confere as saídas
+versionadas e salva a figura em `docs/figuras/t19/`.
+
+Esse agrupamento é descritivo e não altera CPTED, dimerização ou o modelo de falha em 14 dias.
+Detalhes e evidências em [`ZONAS_PRIORITARIAS.md`](../../docs/ZONAS_PRIORITARIAS.md).

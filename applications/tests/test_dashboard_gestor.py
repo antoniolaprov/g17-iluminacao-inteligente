@@ -99,3 +99,20 @@ def test_api_indisponivel_oferece_tentativa_sem_excecao(painel, monkeypatch):
     assert not app.exception
     assert any("Não foi possível carregar" in w.value for w in app.warning)
     assert any(b.label == "Tentar novamente" for b in app.button)
+
+
+def test_zonas_historicas_filtram_grupos_sem_depender_do_recorte_do_parque(painel):
+    from zonas_prioritarias import carregar
+    app, respostas = painel
+    bairros, meta = carregar()
+    respostas["/zonas"] = {"metadados": meta, "bairros": bairros.to_dict(orient="records")}
+    app.run(timeout=30)
+    assert not app.exception
+    app.multiselect(key="zonas_historicas").set_value(["Z01"]).run()
+    assert not app.exception
+    tabela = app.dataframe[-1].value
+    assert set(tabela["Grupo"]) == {"Z01"}
+    assert len(tabela) == meta["grupos"][0]["bairros"]
+    app.multiselect(key="bairros").set_value(["BAIRRO B"]).run()
+    assert not app.exception
+    assert len(app.dataframe[-1].value) == len(tabela)

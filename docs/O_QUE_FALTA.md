@@ -248,7 +248,12 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
   `python -m pytest applications/tests -q` a cada push ou pull request.
 - **Pronto quando:** o selo verde aparecer no GitHub.
 
-### ⬜ T19 · K-Means de zonas prioritárias (ML-12) 🤖, opcional
+### ✅ T19 · K-Means de zonas prioritárias (ML-12) 🤖, opcional
+> **27/11/2026 (Luiz Claudio):** concluída. K-Means dos 94 bairros por chamados médios mensais e postes,
+> com log1p/padronização, seleção de k=2..6 por silhouette, artefatos CSV/JSON e notebook 04 executado.
+> Snapshot 2024-12–2025-11: **3 grupos (35/53/6 bairros)**, silhouette **0,5332**, ARI mínimo **0,9335**.
+> API `/zonas`, aba Zonas com filtro/exportação e **52 testes aprovados**. Não altera CPTED ou comandos.
+> Método, resultados, limitações e evidências: [ZONAS_PRIORITARIAS.md](ZONAS_PRIORITARIAS.md).
 ### ⬜ T20 · `id_ponto` real no `config.json` (ML-07) 🤝, opcional
 - Precisa baixar o CSV bruto de postes do portal de dados abertos do Recife.
 
@@ -268,11 +273,11 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
 | Painel do gestor (Streamlit + mapa) e API | `applications/dashboard_gestor/`, `ml/src/api.py` |
 | Modelo de risco por bairro (Emlurb), modelo de rota e detector de anomalias | `applications/ml/src/` |
 | Demo em dois cliques | `INICIAR_DEMO.bat`, `PARAR_DEMO.bat` |
-| Testes automáticos (37) | `applications/tests/` |
+| Testes automáticos (52) | `applications/tests/` |
 
 ## Como conferir que está tudo funcionando
 
 1. `INICIAR_DEMO.bat` → responda N → espere as páginas abrirem.
 2. Os testes: `cd applications` e `docker compose run --rm --no-deps api python -m pytest tests -q`
-   (tem que dar "37 passed").
+   (tem que dar "52 passed").
 3. Http://localhost:8501 mostra o mapa com as 500 luminárias, e a aba "Dimerização" mostra "0 violações".

@@ -106,9 +106,15 @@ Prever **quais postes ou bairros têm mais chance de ter chamado de "lâmpada ap
 
 ### 2.2 Complementar: zonas prioritárias (agrupamento)
 
-Usar **K-means** para agrupar bairros pela quantidade de chamados e de postes. O resultado mostra onde a falta
-de luz é mais crítica, o que reforça o argumento de segurança (CPTED). Nessas zonas, a central pode pedir mais
-potência.
+**Implementado na T19 (27/11/2026):** K-Means agrupa os 94 bairros por chamados médios mensais e total
+de postes, com log1p + padronização e escolha de k por silhouette. O snapshot dos últimos 12 meses
+disponíveis (2024-12 a 2025-11) tem 3 grupos. Notebook `04_zonas_prioritarias.ipynb`, API `/zonas`
+e aba Zonas permitem comparar os perfis e exportar os bairros.
+
+Os grupos descrevem demanda histórica; não medem segurança ou probabilidade de falha e não precisam
+ser vizinhos. Servem como contexto para discutir a demanda com o CPTED. Mudanças de potência continuam
+dependendo dos controles e pisos existentes, sem comandos automáticos derivados desses grupos.
+Método, resultados e limitações: [`docs/ZONAS_PRIORITARIAS.md`](docs/ZONAS_PRIORITARIAS.md).
 
 ### 2.3 Extra (só se sobrar tempo): anomalia na telemetria
 

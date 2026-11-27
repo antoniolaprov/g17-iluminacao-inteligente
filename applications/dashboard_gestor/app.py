@@ -128,8 +128,8 @@ c2.metric("Cintilando no recorte", int((filtro["estado"] == "CINTILANDO").sum())
 c3.metric("Acima do limiar no recorte", int((filtro["prob_falha_14d"].fillna(0) >= limiar).sum()),
           help=f"Chance de falha ≥ {limiar:.1%}. Limiar do modelo; as faixas de cor do mapa são fixas.")
 
-aba_mapa, aba_lum, aba_dim, aba_modelo, aba_cpted = st.tabs(
-    ["Operação", "Luminária", "Dimerização", "Modelo", "CPTED"])
+aba_mapa, aba_lum, aba_dim, aba_modelo, aba_cpted, aba_zonas = st.tabs(
+    ["Operação", "Luminária", "Dimerização", "Modelo", "CPTED", "Zonas"])
 
 with aba_mapa:
     st.subheader("Manutenção prioritária")
@@ -287,6 +287,46 @@ with aba_dim:
                             f"(meta da Prefeitura: até {eco['meta_prefeitura_pct']}%)")
             st.caption("Iluminância estimada de forma linear pela potência (proposta, g.6); validação com luxímetro "
                        "é trabalho futuro.")
+
+
+with aba_zonas:
+    st.subheader("Perfis históricos dos bairros")
+    st.caption("Análise complementar dos 94 bairros da base Emlurb. Os filtros do parque simulado não se aplicam aqui.")
+    zonas = api("/zonas")
+    if "_erro" in zonas:
+        st.info("Agrupamento histórico indisponível no momento. Tente atualizar os dados.")
+    else:
+        zm = zonas["metadados"]
+        zb = pd.DataFrame(zonas["bairros"])
+        st.markdown(f"**{zm['bairros']} bairros · {zm['k']} grupos** · "
+                    f"chamados observados de **{zm['periodo']['inicio']} a {zm['periodo']['fim']}** · cadastro de postes de 2025")
+        st.info("Os grupos reúnem perfis semelhantes de chamados e postes; não precisam ser vizinhos. "
+                "Z01 tem maior média de chamados por bairro neste recorte. Isso não mede segurança, "
+                "não é probabilidade de falha e não envia comandos aos postes.")
+        grupos = st.multiselect("Grupos do histórico", sorted(zb["zona"].unique()), key="zonas_historicas")
+        recorte = zb[zb["zona"].isin(grupos)] if grupos else zb
+        st.altair_chart(alt.Chart(recorte).mark_circle(size=80, opacity=0.8).encode(
+            x=alt.X("total_postes:Q", title="Postes cadastrados (escala log)", scale=alt.Scale(type="log")),
+            y=alt.Y("chamados_media_mensal:Q", title="Chamados por mês (escala symlog)", scale=alt.Scale(type="symlog")),
+            color=alt.Color("zona:N", title="Grupo", scale=alt.Scale(domain=sorted(zb["zona"].unique()),
+                            range=["#2E6F8E", "#C1502E", "#728C39", "#835BA7", "#D99D28", "#5A7D87"][:zm["k"]])),
+            tooltip=[alt.Tooltip("bairro_norm:N", title="Bairro"), alt.Tooltip("zona:N", title="Grupo"),
+                     alt.Tooltip("total_postes:Q", title="Postes", format=".0f"),
+                     alt.Tooltip("chamados_media_mensal:Q", title="Chamados/mês", format=".2f"),
+                     alt.Tooltip("taxa_1000_postes:Q", title="Chamados/mês por 1.000 postes", format=".2f")]
+        ), use_container_width=True)
+        st.caption(f"K-Means em log1p + padronização. Silhouette: {zm['silhouette']:.3f}; "
+                   f"ARI mínimo com quatro sementes adicionais: {zm['estabilidade']['ari_minimo']:.3f}. "
+                   "São medidas de separação/estabilidade, não de acerto de previsão.")
+        st.dataframe(recorte.rename(columns={"bairro_norm": "Bairro", "zona": "Grupo", "total_postes": "Postes",
+                     "chamados_total": "Chamados no período", "chamados_media_mensal": "Chamados/mês",
+                     "taxa_1000_postes": "Chamados/mês por 1.000 postes"}).sort_values(["Grupo", "Chamados/mês"], ascending=[True, False]),
+                     hide_index=True, use_container_width=True)
+        st.download_button("Baixar bairros e grupos (CSV)", recorte.to_csv(index=False).encode("utf-8"),
+                           file_name="zonas_bairros.csv", mime="text/csv")
+        st.caption("Limitações: chamados dependem de notificação; o cadastro estático de 2025 é aplicado "
+                   "a todo o período; bairros grandes tendem a gerar mais chamados. A taxa é apenas contexto, "
+                   "não entra nas duas features de agrupamento. IDs de grupo podem mudar em novos recortes.")
 
 with aba_lum:
     if filtro.empty:

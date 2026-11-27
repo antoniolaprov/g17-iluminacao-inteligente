@@ -33,7 +33,7 @@
 > **ML-11** feita (economia em `dimerizacao.py`, com extrapolação para o Recife). **ML-04** vale agora
 > para o notebook 03 (feito) e foi concluída nos notebooks 01/02 em 27/11 (T17). **ML-06**
 > continua decisão do grupo. **ML-07** depende dos CSVs brutos (fora do Git). **ML-09** depende da placa.
-> **ML-12** (K-Means) não foi feita.
+> **ML-12** (K-Means) concluída em 27/11 na T19: 94 bairros, notebook 04, API e painel; ver `ZONAS_PRIORITARIAS.md`.
 
 ## 1. Resumo Executivo: Estado Atual vs. Rubrica Oficial
 
@@ -137,7 +137,11 @@
 
 - [ ] **ML-11 · Cálculo de economia de energia estimada para o Recife (`MACHINE_LEARNING.md` §2.4)**
   - Usar a coluna `potencia` do cadastro de postes (nunca `consumo_kw`/`consumo_1`) para estimar a economia em kWh/R\$ da dimerização para 70% em horários sem pedestre.
-- [ ] **ML-12 · Agrupamento de zonas prioritárias com K-Means (`MACHINE_LEARNING.md` §2.2)**
+- [x] **ML-12 · Agrupamento de zonas prioritárias com K-Means (`MACHINE_LEARNING.md` §2.2)** *(concluído em 27/11/2026, Luiz Claudio — T19)*
+  - **Feito:** 94 bairros; chamados médios mensais e postes, log1p + padronização, k escolhido por silhouette,
+    estabilidade entre sementes, notebook 04 executado, artefatos versionados, API `/zonas` e aba Zonas.
+    Resultado: k=3, silhouette 0,5332, ARI mínimo 0,9335. Análise descritiva, sem alteração do CPTED/comandos.
+    Evidências e limites em [`ZONAS_PRIORITARIAS.md`](ZONAS_PRIORITARIAS.md).
   - Clusterizar os 94 bairros por volume de chamados e número de postes para reforçar visualmente a priorização CPTED no relatório.
 
 ---
