@@ -224,9 +224,12 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
   - executar os dois de novo.
 - **Pronto quando:** os dois notebooks estiverem reexecutados, com as saídas salvas.
 
-### 🟡 T18 · Testes automáticos no GitHub Actions 🤖 (Luiz)
-> **27/11 (Luiz Claudio + Codex):** workflow .github/workflows/testes.yml criado para push e pull request,
-> com Python 3.12 e as dependências da central. Aguardando a primeira execução verde no GitHub.
+### ✅ T18 · Testes automáticos no GitHub Actions 🤖 (Luiz)
+> **27/11/2026 (Luiz Claudio + Codex):** concluída. Workflow `.github/workflows/testes.yml` executa
+> os testes em cada push e pull request, com Python 3.12 e as dependências fixadas da central.
+> Revisão após o commit: YAML, gatilhos, permissões de leitura e diff conferidos; **32 testes passaram**
+> localmente e no GitHub Actions (Ubuntu), sem precisar de Docker, placa ou credenciais externas.
+> Evidência: [execução verde na branch de trabalho](https://github.com/antoniolaprov/g17-iluminacao-inteligente/actions/runs/46078183023).
 - **O que fazer:** criar um workflow que instala `applications/requirements-central.txt` e roda
   `python -m pytest applications/tests -q` a cada push ou pull request.
 - **Pronto quando:** o selo verde aparecer no GitHub.
