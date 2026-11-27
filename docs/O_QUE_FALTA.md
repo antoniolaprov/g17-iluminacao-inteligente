@@ -17,6 +17,7 @@
    - 🤖 **o Claude consegue fazer sozinho** (código, documentação, notebooks);
    - 🤝 **o Claude ajuda, mas uma pessoa decide ou executa uma parte** (decisão do grupo, print, conta);
    - 👤 **só uma pessoa** (placa física, texto do relatório, conversa com os professores).
+   - Status: ⬜ não começada · 🟡 parcial (o que falta está escrito na tarefa) · ✅ feita.
 4. Regras para a IA (estão também no `CLAUDE.md`):
    - responder em português, em passos pequenos;
    - rodar os testes antes de commitar mudança em Python:
@@ -66,7 +67,10 @@
 - **Pronto quando:** as figuras estiverem em `docs/figuras/` com nomes claros (`airflow_dags.png`,
   `mlflow_falha_14d.png`...).
 
-### ⬜ T3 · Esquemático e fotos atualizados (`/schematics`) 🤝
+### 🟡 T3 · Esquemático e fotos atualizados (`/schematics`) 🤝
+> **27/11 (Antônio + Claude):** feitos os itens 2 e 4 abaixo: o `schematics/README.md` foi reescrito
+> para a v3.0 e foi criado o diagrama de ligações `schematics/ligacoes-v3.png`. O print antigo do Wokwi
+> ficou marcado como histórico. **Falta:** as fotos (item 3, só uma pessoa) e, se quiserem, o print novo do Wokwi (item 1).
 - **Problema:** `schematics/esquematico-wokwi.png` e `schematics/README.md` são de **19/11**, de antes do
   firmware v3.0. Eles não mostram os 3 postes em pinos separados (D18, D22, D23) nem o segundo
   ultrassônico (S2 em D2/D4). O `diagram.json` já está atualizado. Uma pasta fraca tira nota.
@@ -74,9 +78,12 @@
   1. 🤝 Abrir o `esp32-esp8266/poste_g17/diagram.json` no Wokwi e salvar o print novo do circuito.
   2. 🤖 Reescrever o `schematics/README.md` com a tabela de pinos da v3.0 (seção 6 do contexto).
   3. 👤 Tirar fotos da maquete montada, na faculdade, e commitar em `schematics/fotos/`.
+  4. 🤖 Gerar um diagrama de ligações da v3.0 a partir do mapa de pinos (✅ `schematics/ligacoes-v3.png`).
 - **Pronto quando:** o esquemático, o README e as fotos batem com a montagem atual.
 
-### ⬜ T4 · Declaração de uso de IA no README 🤖 (o grupo confere)
+### ✅ T4 · Declaração de uso de IA no README 🤖 (o grupo confere)
+> **27/11 (Antônio + Claude):** a seção "Uso de inteligência artificial" foi criada no `README.md`.
+> Quem usou outra IA (ChatGPT etc.) deve acrescentar lá.
 - **O que fazer:** criar uma seção "Uso de IA" no `README.md`, dizendo:
   - onde a IA foi usada: código, documentação e revisão, com o Claude Code;
   - que os commits com IA têm a linha de coautoria;
@@ -132,7 +139,10 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
 - **Quem faz:** o Claude implementa os ajustes que a pessoa pedir.
 - **Pronto quando:** a lista de ajustes foi feita e os prints da T2 foram tirados depois dela.
 
-### ⬜ T9 · README final 🤖
+### ✅ T9 · README final 🤖
+> **27/11 (Antônio + Claude):** o README ganhou no topo um resumo, o "como rodar em dois cliques", o
+> print do painel do gestor, a tabela de documentação e a declaração de uso de IA, além do link para o
+> esquemático. Quando a T2 tiver os prints novos, vale trocar ou acrescentar imagens.
 - **O que fazer:** revisar o `README.md` da raiz como porta de entrada:
   - o que é o projeto;
   - as duas frentes (maquete e plataforma);

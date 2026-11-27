@@ -1,7 +1,47 @@
 # Poste de Iluminação Pública Inteligente (Grupo 17)
 
-Projeto da disciplina **Sistemas Embarcados** da CESAR School.
-Professores: Bella Nunes e Jymmy Barreto.
+Projeto da disciplina **Sistemas Embarcados** da CESAR School, integrado à proposta de projeto
+*Ideação, Proposição e Planejamento* do grupo. Professores: Bella Nunes e Jymmy Barreto.
+
+**Em resumo:**
+- **Maquete:** um **ESP32** é um poste numa rua em Y. De dia fica apagado, à noite fica em 70%, vai a
+  100% quando passa um pedestre, e manda tudo por **MQTT** para um dashboard em tempo real.
+- **Plataforma de gestão** para a prefeitura:
+  - 500 luminárias simuladas, com falhas calibradas pelos dados reais da Emlurb;
+  - um modelo de **manutenção preditiva** (chance de falha nos próximos 14 dias);
+  - **priorização CPTED** dos reparos;
+  - **dimerização** com piso de segurança;
+  - um **painel com mapa**.
+- **Tecnologias:** PostgreSQL, Airflow, MLflow, FastAPI, Streamlit e Docker.
+
+![Painel do gestor: mapa do parque de luminárias, risco de falha e lista de manutenção](docs/figuras/painel_gestor_mapa.jpg)
+
+### Como rodar em dois cliques
+
+1. Instale e abra o **Docker Desktop**.
+2. Dê dois cliques em **`INICIAR_DEMO.bat`**, na raiz do repositório. Ele pergunta se a maquete está
+   ligada (responda **N** para simular tudo), sobe a central e abre:
+   - o **painel do gestor** (http://localhost:8501);
+   - o **MLflow** (http://localhost:5000);
+   - a **API** (http://localhost:8000/docs);
+   - o **dashboard da maquete**.
+3. Para desligar: **`PARAR_DEMO.bat`**.
+
+Na primeira vez, o Docker leva uns 20 minutos instalando as bibliotecas. Outros jeitos de rodar e o
+passo a passo de cada serviço estão em [`applications/README.md`](applications/README.md).
+
+### Documentação
+
+| Documento | Para quê |
+|---|---|
+| [`docs/ALINHAMENTO_PROPOSTA.md`](docs/ALINHAMENTO_PROPOSTA.md) | Como o repositório atende cada ponto da proposta, com a verificação |
+| [`docs/PREMISSAS_SIMULADOR.md`](docs/PREMISSAS_SIMULADOR.md) | Premissas, fontes e calibração do simulador do parque |
+| [`docs/CONTEXTO_PARA_IA.md`](docs/CONTEXTO_PARA_IA.md) | Documento técnico completo (também serve de contexto para assistentes de IA) |
+| [`docs/O_QUE_FALTA.md`](docs/O_QUE_FALTA.md) | O que ainda falta fazer, com critério de pronto |
+| [`docs/AUDITORIA_ML.md`](docs/AUDITORIA_ML.md) | Entregáveis de ML da disciplina e guia para a banca |
+| [`docs/testes_wokwi.md`](docs/testes_wokwi.md) | Registro dos testes no simulador Wokwi |
+| [`schematics/`](schematics/) | Ligações da maquete e circuito do Wokwi |
+| [`applications/ml/notebooks/`](applications/ml/notebooks/) | EDA e modelos (o 03 é o modelo de falha em 14 dias) |
 
 ---
 
@@ -208,6 +248,8 @@ desligar ou perder a conexão sem avisar. Assim a central sabe na hora que um po
 
 ## 4. Hardware
 
+O diagrama de ligações da montagem atual está em [`schematics/`](schematics/README.md).
+
 ### Mapa de pinos (ESP32 DevKit)
 
 | GPIO | Componente |
@@ -295,6 +337,25 @@ Para gravar na placa física, mude `#define SIMULACAO 1` para `0` e preencha o n
 - [x] Ponte Mosquitto local ↔ HiveMQ pronta, para a placa usar a central local sem regravar
 - [ ] Testar a ponte e o modelo de rota com a placa no dia (A5/F4/F10)
 - [ ] Relatório CSBC
+
+---
+
+## Uso de inteligência artificial
+
+Declaração exigida pelo edital:
+
+- **Ferramenta:** parte do código, dos testes e da documentação deste repositório foi feita com o apoio
+  do assistente de programação **Claude Code** (Anthropic).
+- **Como identificar:** os commits feitos com esse apoio terminam com a linha
+  `Co-Authored-By: Claude ...`, e dá para vê-los no histórico do Git.
+- **Uso:** escrever e revisar código (firmware, central, modelos, pipeline, painéis), escrever e rodar
+  testes, revisar a documentação e conferir números.
+- **Revisão:** as decisões de projeto e os resultados foram conferidos pelo grupo. Isso inclui os testes
+  automáticos em `applications/tests/`, os testes no Wokwi (`docs/testes_wokwi.md`) e os testes na placa.
+- **Relatório CSBC:** o texto é escrito pelo grupo. A IA foi usada **apenas para revisão de texto**,
+  como permite o edital, e isso também está declarado no relatório.
+- **Outras ferramentas:** quem usou outra IA no projeto (por exemplo, ChatGPT) deve acrescentar aqui qual
+  foi e para quê.
 
 ---
 
