@@ -100,6 +100,8 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
   - **Pronto quando:** a matriz foi revisada, CR < 0,10 e o teste `tests/test_cpted.py` passa.
 - **T5b, premissas do simulador:** revisar `docs/PREMISSAS_SIMULADOR.md` e `simulador/premissas_parque.json`
   (as linhas marcadas como "premissa"). Se algum valor mudar, gerar o parque de novo e retreinar.
+  - **27/11 (Miguel Becker + Codex):** nomes de premissas inválidos e parques abaixo da capacidade
+    mínima por bairro são rejeitados. Os valores atuais seguem para revisão do grupo.
 - **T5c, risco por bairro, contagem ou taxa** (ML-06 da auditoria): o padrão é `contagem` em
   `applications/ml/config.json`.
 

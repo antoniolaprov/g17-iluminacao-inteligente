@@ -61,7 +61,9 @@ def carregar_premissas(alteracoes: dict | None = None) -> dict:
         alvo = premissas
         *caminho, ultima = chave.split(".")
         for parte in caminho:
-            alvo = alvo[parte]
+            alvo = alvo.get(parte) if isinstance(alvo, dict) else None
+        if not isinstance(alvo, dict) or ultima not in alvo:
+            raise KeyError(f"Premissa desconhecida: {chave}")
         alvo[ultima] = valor
     return premissas
 
@@ -110,6 +112,9 @@ class Parque:
     def _criar_catalogo(self) -> pd.DataFrame:
         p, rng = self.p, self.rng
         bairros = list(p["bairros"])
+        minimo_total = len(bairros) * p["luminarias_minimo_por_bairro"]
+        if p["luminarias"] < minimo_total:
+            raise ValueError(f"O parque precisa de pelo menos {minimo_total} luminárias para respeitar o mínimo por bairro")
         reais = dados_reais_bairros(bairros)
         peso = reais["total_postes"].fillna(reais["total_postes"].median())
         qtd = np.maximum(p["luminarias_minimo_por_bairro"],

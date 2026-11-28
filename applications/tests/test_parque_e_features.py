@@ -2,10 +2,23 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from banco_parque import COLUNAS_TELEMETRIA
 from parque import Parque, carregar_premissas
 from parque_features import FEATURES, JANELA_DIAS, construir_features, limpar_telemetria, linhas_para_modelo, rotular
+
+
+@pytest.mark.parametrize("chave", ["surtos.taxa_diaria", "surtos.taxa_dia.valor", "calibracao_alternativa.taxa"])
+def test_simulador_rejeita_premissa_desconhecida(chave):
+    with pytest.raises(KeyError, match="Premissa desconhecida"):
+        carregar_premissas({chave: 0.0})
+
+
+def test_simulador_rejeita_parque_abaixo_do_minimo_por_bairro():
+    p = carregar_premissas({"luminarias": 20, "luminarias_minimo_por_bairro": 3})
+    with pytest.raises(ValueError, match="pelo menos 30 luminárias"):
+        Parque(p)
 
 
 def test_simulador_e_deterministico_com_a_semente():
