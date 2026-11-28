@@ -14,7 +14,7 @@ if /i "%MODO%"=="maquete" goto modo_maquete
 if /i "%MODO%"=="simulado" goto modo_simulado
 echo  A maquete (placa do P01) esta ligada e conectada no Wi-Fi?
 echo    S = sim: o P01 do painel e a placa de verdade (precisa de internet no PC e na placa)
-echo    N = nao: o PC simula o P01 (funciona sem internet)
+echo    N = nao: o PC simula o P01, sem precisar da placa
 choice /c SN /n /m " Digite S ou N: "
 if errorlevel 2 goto modo_simulado
 
@@ -115,9 +115,7 @@ docker compose run --rm publicar
 if errorlevel 1 goto erro
 
 echo [7/7] Abrindo as paginas no navegador...
-set DASH=%~dp0applications\dashboard\index.html
-set DASH=%DASH:\=/%
-start "" msedge "file:///%DASH%?broker=ws://localhost:9001" 2>nul || start "" "%~dp0applications\dashboard\index.html"
+start "" "http://localhost:8000/maquete?broker=ws://localhost:9001"
 timeout /t 2 /nobreak >nul
 start "" "http://localhost:8501"
 start "" "http://localhost:5000"

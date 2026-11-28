@@ -124,20 +124,11 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
   | Antônio Augusto | IoT e Engenharia de Dados | T3, T10, T11, T12 |
 - **Pronto quando:** todos os 7 aparecem em `git shortlog -sn --all`.
 
-### 🟡 T7 · Juntar a `fase2-central-ml` na `main` 🤝 (decisão do representante)
-> **27/11:** o pull request foi aberto em https://github.com/antoniolaprov/g17-iluminacao-inteligente/pull/1
-> (sem conflitos: a `main` não tem commits próprios). **Falta:** o representante fazer o merge, de
-> preferência depois que todos tiverem dado push no que fizeram, e antes de 03/12.
-- **Por quê:** o repositório é público, e a branch padrão, que é o que os professores abrem, é a **`main`**.
-  A `fase2-central-ml` tem pelo menos 16 commits que ainda não estão na `main`.
-- **O que fazer:**
-  1. Todos dão push no que tiverem.
-  2. Rodar os testes.
-  3. Abrir o pull request `fase2-central-ml` → `main` (o Claude faz com `gh pr create`).
-  4. Revisar e fazer o merge.
-  5. Conferir se o README aparece certo na página do GitHub.
-- **Pronto quando:** a `main` tiver tudo, antes de 03/12. Depois do merge, combinem se o trabalho
-  continua na `main`.
+### ✅ T7 · Juntar a `fase2-central-ml` na `main` 🤝
+> A primeira integração foi feita no [PR #1](https://github.com/antoniolaprov/g17-iluminacao-inteligente/pull/1).
+> As integrações seguintes passam por revisão e CI, preservando os commits individuais do grupo.
+- A `main` é a branch padrão que os professores abrem. Para novas entregas, confira a
+  [comparação entre as branches](https://github.com/antoniolaprov/g17-iluminacao-inteligente/compare/main...fase2-central-ml).
 
 ### ✅ T8 · Revisão de UX dos painéis 🤝 (Arthur)
 > **27/11/2026 (Luiz Claudio):** concluída. Gestor com operação primeiro, filtros e indicadores
@@ -207,7 +198,9 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
   3. painel do gestor;
   4. modelo e resultados;
   5. limitações.
-- **Plano B sem internet:** `INICIAR_DEMO.bat` respondendo **N** (tudo simulado, inclusive o P01).
+- **Plano B sem a placa:** `INICIAR_DEMO.bat` respondendo **N** (tudo simulado, inclusive o P01).
+  Se faltar internet, use as capturas da T2 e as figuras do notebook que estiverem disponíveis
+  localmente. Os painéis ao vivo carregam bibliotecas e mapas pela web.
 - **Checklist do dia:**
   - Docker Desktop aberto antes;
   - imagens já construídas na véspera (a primeira construção leva ~20 min);
@@ -288,11 +281,10 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
 | Painel do gestor (Streamlit + mapa) e API | `applications/dashboard_gestor/`, `ml/src/api.py` |
 | Modelo de risco por bairro (Emlurb), modelo de rota e detector de anomalias | `applications/ml/src/` |
 | Demo em dois cliques | `INICIAR_DEMO.bat`, `PARAR_DEMO.bat` |
-| Testes automáticos (62) | `applications/tests/` |
+| Testes automáticos | `applications/tests/` |
 
 ## Como conferir que está tudo funcionando
 
 1. `INICIAR_DEMO.bat` → responda N → espere as páginas abrirem.
-2. Os testes: `cd applications` e `docker compose run --rm --no-deps api python -m pytest tests -q`
-   (tem que dar "62 passed").
+2. Os testes: `cd applications` e `docker compose run --rm --no-deps api python -m pytest tests -q`.
 3. Http://localhost:8501 mostra o mapa com as 500 luminárias, e a aba "Dimerização" mostra "0 violações".

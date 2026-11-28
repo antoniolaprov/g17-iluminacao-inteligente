@@ -51,7 +51,7 @@ prioridades e dimerização a cada dia novo. Para treinar de novo na mão:
 | O quê | Onde |
 |---|---|
 | **Painel do gestor** (mapa, manutenção preditiva, CPTED, dimerização) | http://localhost:8501 |
-| Dashboard da maquete | abra `dashboard/index.html?broker=ws://localhost:9001` (ou configure o broker na tela) |
+| Dashboard da maquete | http://localhost:8000/maquete?broker=ws://localhost:9001 |
 | API de risco | http://localhost:8000/docs |
 | MLflow (experimentos e modelo registrado) | http://localhost:5000 |
 | Airflow (`docker compose --profile airflow up -d --build`, pesado: ~3 GB na primeira vez) | http://localhost:8080, usuário `admin`, senha: `docker compose exec airflow cat standalone_admin_password.txt`. O DAG é o `g17_risco_bairro`; os scripts rodam num venv próprio (`airflow/Dockerfile`), porque o Airflow traz numpy 1.x e o modelo usa numpy 2 |

@@ -41,6 +41,7 @@ from pathlib import Path
 import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -55,6 +56,11 @@ ARQ_MODELO = MODELOS / "modelo_risco.joblib"
 ARQ_CONFIG = RAIZ / "config.json"
 
 app = FastAPI(title="G17 - Risco de lâmpada apagada por bairro", version="1.0")
+
+
+@app.get("/maquete", include_in_schema=False)
+def painel_maquete() -> FileResponse:
+    return FileResponse(RAIZ.parent / "dashboard" / "index.html", media_type="text/html")
 
 
 class Estado:
