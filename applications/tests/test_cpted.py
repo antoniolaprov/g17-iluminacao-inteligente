@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from cpted import CRITERIOS, LIMITES, nivel, pesos_ahp, priorizar, score_cpted, sensibilidade
 
@@ -16,6 +17,17 @@ def test_pesos_ahp_somam_1_e_sao_consistentes():
 def test_matriz_inconsistente_e_detectada():
     ruim = np.array([[1, 9, 1 / 9], [1 / 9, 1, 9], [9, 1 / 9, 1]])
     assert not pesos_ahp(ruim)["consistente"]
+
+
+@pytest.mark.parametrize("matriz, mensagem", [
+    (np.eye(2), "3 linhas e 3 colunas"),
+    (np.full((3, 3), np.nan), "entre 1/9 e 9"),
+    (np.full((3, 3), 10), "entre 1/9 e 9"),
+    (np.full((3, 3), 2), "comparações recíprocas"),
+])
+def test_ahp_rejeita_comparacoes_invalidas(matriz, mensagem):
+    with pytest.raises(ValueError, match=mensagem):
+        pesos_ahp(matriz)
 
 
 def test_niveis_e_trecho_sem_dados():

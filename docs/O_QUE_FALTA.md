@@ -95,6 +95,8 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
 - **T5a, matriz AHP do score CPTED:** em `applications/ml/src/cpted.py` (`MATRIZ_AHP` e
   `JUSTIFICATIVAS`). A proposta (g.4) pede que o grupo justifique cada comparação. Responsável pela
   frente: **Henrique**.
+  - **27/11 (Miguel Becker + Codex):** a validação rejeita matrizes fora da escala de Saaty, com
+    dimensões incorretas ou comparações sem reciprocidade. A matriz atual tem CR de 0,0079.
   - **Pronto quando:** a matriz foi revisada, CR < 0,10 e o teste `tests/test_cpted.py` passa.
 - **T5b, premissas do simulador:** revisar `docs/PREMISSAS_SIMULADOR.md` e `simulador/premissas_parque.json`
   (as linhas marcadas como "premissa"). Se algum valor mudar, gerar o parque de novo e retreinar.
