@@ -90,7 +90,7 @@
   - que o relatório só teve revisão de texto.
 - **Pronto quando:** a seção existe e o grupo confirmou que está correta.
 
-### ⬜ T5 · Decisões que são do grupo 🤝
+### 🟡 T5 · Decisões que são do grupo 🤝
 O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o código, a documentação e os testes.
 - **T5a, matriz AHP do score CPTED:** em `applications/ml/src/cpted.py` (`MATRIZ_AHP` e
   `JUSTIFICATIVAS`). A proposta (g.4) pede que o grupo justifique cada comparação. Responsável pela
@@ -104,6 +104,8 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
     mínima por bairro são rejeitados. Os valores atuais seguem para revisão do grupo.
 - **T5c, risco por bairro, contagem ou taxa** (ML-06 da auditoria): o padrão é `contagem` em
   `applications/ml/config.json`.
+  - **27/11 (Miguel Becker + Codex):** se a API falhar durante a consulta dos postes, todo o lote
+    usa o CSV local. O critério atual continua em contagem, à espera da decisão do grupo.
 
 ### ⬜ T6 · Commits de todos os integrantes 👤
 - **Situação em 27/11:** só **Antônio, Felipe e fthenri2** têm commits. **Arthur, Bruno, Luiz Claudio e

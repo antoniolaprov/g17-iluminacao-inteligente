@@ -65,14 +65,18 @@ def test_config_api_e_fallback_preservam_referencia():
     assert publicar.payload_risco(legado)["id_ponto"] is None
 
 
-@pytest.mark.parametrize("disponivel", [True, False])
+@pytest.mark.parametrize("modo_api", ["disponivel", "indisponivel", "queda", "json_invalido"])
 @pytest.mark.parametrize("sem_comando", [True, False])
-def test_publicacao_preserva_topicos_e_comandos(monkeypatch, disponivel, sem_comando):
+def test_publicacao_preserva_topicos_e_comandos(monkeypatch, modo_api, sem_comando):
     cliente_api = TestClient(api.app)
     def buscar(poste):
-        if not disponivel:
+        if modo_api == "indisponivel" or (modo_api == "queda" and poste == "P02"):
             raise URLError("indisponível no teste")
-        return cliente_api.get(f"/poste/{poste}").json()
+        if modo_api == "json_invalido" and poste == "P02":
+            raise json.JSONDecodeError("JSON inválido", "", 0)
+        dados = cliente_api.get(f"/poste/{poste}").json()
+        dados["risco"] = 0.123456
+        return dados
     mensagens = []
     class Cliente:
         def connect(self, *args, **kwargs): pass
@@ -95,6 +99,9 @@ def test_publicacao_preserva_topicos_e_comandos(monkeypatch, disponivel, sem_com
         assert qos == 1 and retido
         assert payload["id_ponto"] == publicar.CONFIG["postes"][poste]["id_ponto"]
         assert payload["vinculo_cadastro"] == publicar.CONFIG["postes"][poste].get("vinculo_cadastro")
+        risco_esperado = (0.123456 if modo_api == "disponivel"
+                          else publicar.risco_pelo_arquivo(poste)["risco"])
+        assert payload["risco"] == risco_esperado
     assert len(comandos) == (0 if sem_comando else len(riscos))
     for _, payload, qos, retido in comandos:
         assert set(payload) == {"potencia"}
