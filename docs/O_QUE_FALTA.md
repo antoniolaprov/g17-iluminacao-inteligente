@@ -90,16 +90,22 @@
   - que o relatório só teve revisão de texto.
 - **Pronto quando:** a seção existe e o grupo confirmou que está correta.
 
-### ⬜ T5 · Decisões que são do grupo 🤝
+### 🟡 T5 · Decisões que são do grupo 🤝
 O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o código, a documentação e os testes.
 - **T5a, matriz AHP do score CPTED:** em `applications/ml/src/cpted.py` (`MATRIZ_AHP` e
   `JUSTIFICATIVAS`). A proposta (g.4) pede que o grupo justifique cada comparação. Responsável pela
   frente: **Henrique**.
+  - **27/11 (Miguel Becker + Codex):** a validação rejeita matrizes fora da escala de Saaty, com
+    dimensões incorretas ou comparações sem reciprocidade. A matriz atual tem CR de 0,0079.
   - **Pronto quando:** a matriz foi revisada, CR < 0,10 e o teste `tests/test_cpted.py` passa.
 - **T5b, premissas do simulador:** revisar `docs/PREMISSAS_SIMULADOR.md` e `simulador/premissas_parque.json`
   (as linhas marcadas como "premissa"). Se algum valor mudar, gerar o parque de novo e retreinar.
+  - **27/11 (Miguel Becker + Codex):** nomes de premissas inválidos e parques abaixo da capacidade
+    mínima por bairro são rejeitados. Os valores atuais seguem para revisão do grupo.
 - **T5c, risco por bairro, contagem ou taxa** (ML-06 da auditoria): o padrão é `contagem` em
   `applications/ml/config.json`.
+  - **27/11 (Miguel Becker + Codex):** se a API falhar durante a consulta dos postes, todo o lote
+    usa o CSV local. O critério atual continua em contagem, à espera da decisão do grupo.
 
 ### ⬜ T6 · Commits de todos os integrantes 👤
 - **Situação em 27/11:** só **Antônio, Felipe e fthenri2** têm commits. **Arthur, Bruno, Luiz Claudio e
@@ -118,20 +124,11 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
   | Antônio Augusto | IoT e Engenharia de Dados | T3, T10, T11, T12 |
 - **Pronto quando:** todos os 7 aparecem em `git shortlog -sn --all`.
 
-### 🟡 T7 · Juntar a `fase2-central-ml` na `main` 🤝 (decisão do representante)
-> **27/11:** o pull request foi aberto em https://github.com/antoniolaprov/g17-iluminacao-inteligente/pull/1
-> (sem conflitos: a `main` não tem commits próprios). **Falta:** o representante fazer o merge, de
-> preferência depois que todos tiverem dado push no que fizeram, e antes de 03/12.
-- **Por quê:** o repositório é público, e a branch padrão, que é o que os professores abrem, é a **`main`**.
-  A `fase2-central-ml` tem pelo menos 16 commits que ainda não estão na `main`.
-- **O que fazer:**
-  1. Todos dão push no que tiverem.
-  2. Rodar os testes.
-  3. Abrir o pull request `fase2-central-ml` → `main` (o Claude faz com `gh pr create`).
-  4. Revisar e fazer o merge.
-  5. Conferir se o README aparece certo na página do GitHub.
-- **Pronto quando:** a `main` tiver tudo, antes de 03/12. Depois do merge, combinem se o trabalho
-  continua na `main`.
+### ✅ T7 · Juntar a `fase2-central-ml` na `main` 🤝
+> A primeira integração foi feita no [PR #1](https://github.com/antoniolaprov/g17-iluminacao-inteligente/pull/1).
+> As integrações seguintes passam por revisão e CI, preservando os commits individuais do grupo.
+- A `main` é a branch padrão que os professores abrem. Para novas entregas, confira a
+  [comparação entre as branches](https://github.com/antoniolaprov/g17-iluminacao-inteligente/compare/main...fase2-central-ml).
 
 ### ✅ T8 · Revisão de UX dos painéis 🤝 (Arthur)
 > **27/11/2026 (Luiz Claudio):** concluída. Gestor com operação primeiro, filtros e indicadores
@@ -191,14 +188,19 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
 - **Prints:** o dashboard com o P01 e o log.
 - **Pronto quando:** houver evidência (print ou vídeo) do comportamento na placa.
 
-### ⬜ T13 · Ensaio da apresentação (E5) 🤝
+### 🟡 T13 · Ensaio da apresentação (E5) 🤝
+> **27/11/2026 (Miguel Becker + Codex):** o lançador da demo agora sinaliza falha de inicialização
+> quando API, MLflow ou publicação de risco falham. O fluxo foi verificado no Windows com serviços
+> simulados, incluindo falha no reinício da rota. Falta o ensaio completo com o grupo.
 - **O que fazer:** roteiro de ~10 min, dizendo quem fala o quê e em que ordem:
   1. problema e pesquisa;
   2. maquete ao vivo;
   3. painel do gestor;
   4. modelo e resultados;
   5. limitações.
-- **Plano B sem internet:** `INICIAR_DEMO.bat` respondendo **N** (tudo simulado, inclusive o P01).
+- **Plano B sem a placa:** `INICIAR_DEMO.bat` respondendo **N** (tudo simulado, inclusive o P01).
+  Se faltar internet, use as capturas da T2 e as figuras do notebook que estiverem disponíveis
+  localmente. Os painéis ao vivo carregam bibliotecas e mapas pela web.
 - **Checklist do dia:**
   - Docker Desktop aberto antes;
   - imagens já construídas na véspera (a primeira construção leva ~20 min);
@@ -214,7 +216,10 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
 
 ## Prioridade 3: bônus e opcionais
 
-### ⬜ T15 · Alertas no Telegram (D1, bônus de até +10) 🤝
+### 🟡 T15 · Alertas no Telegram (D1, bônus de até +10) 🤝
+> **27/11/2026 (Miguel Becker + Codex):** o coletor registra se a API aceitou o envio ou se houve
+> erro, com o token mantido fora do log. O fluxo do P02 e as falhas da API têm testes com resposta
+> simulada. Falta configurar o bot do grupo e capturar a mensagem no celular.
 1. 👤 Crie um bot no **@BotFather** e pegue o `chat_id` (passo a passo em `applications/README.md`).
 2. 👤 Crie `applications/.env` com `TELEGRAM_TOKEN` e `TELEGRAM_CHAT_ID`. Esse arquivo **nunca** vai para o Git.
 3. 🤖 Confira se a mensagem chega quando o P02 entra em FALHA, que acontece em poucos minutos no simulador.
@@ -276,11 +281,10 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
 | Painel do gestor (Streamlit + mapa) e API | `applications/dashboard_gestor/`, `ml/src/api.py` |
 | Modelo de risco por bairro (Emlurb), modelo de rota e detector de anomalias | `applications/ml/src/` |
 | Demo em dois cliques | `INICIAR_DEMO.bat`, `PARAR_DEMO.bat` |
-| Testes automáticos (62) | `applications/tests/` |
+| Testes automáticos | `applications/tests/` |
 
 ## Como conferir que está tudo funcionando
 
 1. `INICIAR_DEMO.bat` → responda N → espere as páginas abrirem.
-2. Os testes: `cd applications` e `docker compose run --rm --no-deps api python -m pytest tests -q`
-   (tem que dar "62 passed").
+2. Os testes: `cd applications` e `docker compose run --rm --no-deps api python -m pytest tests -q`.
 3. Http://localhost:8501 mostra o mapa com as 500 luminárias, e a aba "Dimerização" mostra "0 violações".

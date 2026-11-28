@@ -51,6 +51,14 @@ def cliente():
     return TestClient(api.app)
 
 
+def test_api_abre_dashboard_da_maquete_no_broker_local(cliente):
+    resposta = cliente.get("/maquete?broker=ws://localhost:9001")
+    assert resposta.status_code == 200
+    assert resposta.headers["content-type"].startswith("text/html")
+    assert "new URLSearchParams(location.search).get('broker')" in resposta.text
+    assert "mqtt.connect(cfg.url" in resposta.text
+
+
 def test_api_parque(pipeline_rodado, cliente):
     r = cliente.get("/luminarias")
     assert r.status_code == 200 and r.json()["total"] > 0

@@ -47,11 +47,19 @@ K_TOPO = 20
 
 
 def pesos_ahp(matriz: np.ndarray = MATRIZ_AHP) -> dict:
+    matriz = np.asarray(matriz, dtype=float)
+    n = len(CRITERIOS)
+    if matriz.shape != (n, n):
+        raise ValueError(f"A matriz AHP precisa ter {n} linhas e {n} colunas")
+    if not np.isfinite(matriz).all() or (matriz < 1 / 9).any() or (matriz > 9).any():
+        raise ValueError("As comparações AHP precisam estar entre 1/9 e 9")
+    if not np.allclose(matriz * matriz.T, 1.0):
+        raise ValueError("A matriz AHP precisa ter diagonal unitária e comparações recíprocas")
+
     valores, vetores = np.linalg.eig(matriz)
     i = int(np.argmax(valores.real))
     pesos = np.abs(vetores[:, i].real)
     pesos = pesos / pesos.sum()
-    n = len(matriz)
     lambda_max = float(valores.real[i])
     ci = (lambda_max - n) / (n - 1)
     cr = ci / INDICE_ALEATORIO[n] if INDICE_ALEATORIO[n] else 0.0

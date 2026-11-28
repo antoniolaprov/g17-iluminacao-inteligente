@@ -51,7 +51,7 @@ prioridades e dimerização a cada dia novo. Para treinar de novo na mão:
 | O quê | Onde |
 |---|---|
 | **Painel do gestor** (mapa, manutenção preditiva, CPTED, dimerização) | http://localhost:8501 |
-| Dashboard da maquete | abra `dashboard/index.html?broker=ws://localhost:9001` (ou configure o broker na tela) |
+| Dashboard da maquete | http://localhost:8000/maquete?broker=ws://localhost:9001 |
 | API de risco | http://localhost:8000/docs |
 | MLflow (experimentos e modelo registrado) | http://localhost:5000 |
 | Airflow (`docker compose --profile airflow up -d --build`, pesado: ~3 GB na primeira vez) | http://localhost:8080, usuário `admin`, senha: `docker compose exec airflow cat standalone_admin_password.txt`. O DAG é o `g17_risco_bairro`; os scripts rodam num venv próprio (`airflow/Dockerfile`), porque o Airflow traz numpy 1.x e o modelo usa numpy 2 |
@@ -147,3 +147,6 @@ cliente pode usar o IPv6 do PC (`ipconfig`, "Endereço IPv6"); o ESP32 com a bib
 
 O coletor avisa quando um poste entra em FALHA, fica offline ou para de mandar telemetria por 30 s.
 Sem o `.env`, os alertas aparecem só no log e na tabela `alertas` do banco.
+Com a demo em modo simulado, acompanhe `docker compose logs -f coletor` dentro de `applications/`.
+Quando o P02 entrar em FALHA, o coletor registra o alerta e informa se a API aceitou o envio.
+Confirme a mensagem no celular e capture a evidência da T15.

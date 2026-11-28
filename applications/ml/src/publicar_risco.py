@@ -21,7 +21,6 @@ import argparse
 import json
 import os
 import sys
-import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -43,9 +42,14 @@ def risco_pela_api(poste_id: str) -> dict:
         return json.load(resposta)
 
 
-def risco_pelo_arquivo(poste_id: str) -> dict:
+def carregar_risco_local() -> pd.DataFrame:
+    return pd.read_csv(RAIZ / "models" / "risco_por_bairro.csv").set_index("bairro")
+
+
+def risco_pelo_arquivo(poste_id: str, tabela: pd.DataFrame | None = None) -> dict:
     criterio = CONFIG.get("criterio_risco", "contagem")
-    tabela = pd.read_csv(RAIZ / "models" / "risco_por_bairro.csv").set_index("bairro")
+    if tabela is None:
+        tabela = carregar_risco_local()
     bairro = normalizar_bairro(CONFIG["postes"][poste_id]["bairro"])
     linha = tabela.loc[bairro]
     classe = str(linha[f"classe_{criterio}"])
@@ -72,32 +76,39 @@ def main() -> None:
     parser.add_argument("--sem-comando", action="store_true", help="publica só o risco, sem mudar a potência")
     args = parser.parse_args()
 
-    usar_api = True
+    origem = "API"
     try:
-        risco_pela_api(next(iter(CONFIG["postes"])))
-    except (urllib.error.URLError, OSError) as erro:
-        usar_api = False
+        riscos = {poste_id: risco_pela_api(poste_id) for poste_id in CONFIG["postes"]}
+    except (OSError, json.JSONDecodeError) as erro:
+        origem = "arquivo"
         print(f"API em {API_URL} indisponível ({erro}); usando models/risco_por_bairro.csv")
+        tabela = carregar_risco_local()
+        riscos = {poste_id: risco_pelo_arquivo(poste_id, tabela) for poste_id in CONFIG["postes"]}
 
     cliente = novo_cliente("publicar-risco")
     cliente.connect(MQTT_HOST, MQTT_PORT, keepalive=30)
     cliente.loop_start()
-    envios = []
-    for poste_id in CONFIG["postes"]:
-        dados = risco_pela_api(poste_id) if usar_api else risco_pelo_arquivo(poste_id)
-        payload = payload_risco(dados)
-        envios.append(cliente.publish(topico(poste_id, "risco"), json.dumps(payload, ensure_ascii=False), qos=1, retain=True))
-        texto = f"{poste_id} {dados['bairro']:<14} risco {dados['risco']:.2f} ({dados['classe']})"
-        if not args.sem_comando:
-            envios.append(cliente.publish(topico(poste_id, "comando"),
-                                          json.dumps({"potencia": dados["potencia_sugerida"]}), qos=1))
-            texto += f" -> potência {dados['potencia_sugerida']}%"
-        print(texto)
-    for envio in envios:
-        envio.wait_for_publish(timeout=5)
-    cliente.loop_stop()
-    cliente.disconnect()
-    print(f"Publicado em {MQTT_HOST}:{MQTT_PORT} ({'API' if usar_api else 'arquivo'})")
+    try:
+        envios = []
+        for poste_id, dados in riscos.items():
+            destino = topico(poste_id, "risco")
+            payload = json.dumps(payload_risco(dados), ensure_ascii=False)
+            envios.append((destino, cliente.publish(destino, payload, qos=1, retain=True)))
+            texto = f"{poste_id} {dados['bairro']:<14} risco {dados['risco']:.2f} ({dados['classe']})"
+            if not args.sem_comando:
+                destino = topico(poste_id, "comando")
+                payload = json.dumps({"potencia": dados["potencia_sugerida"]})
+                envios.append((destino, cliente.publish(destino, payload, qos=1)))
+                texto += f" -> potência {dados['potencia_sugerida']}%"
+            print(texto)
+        for destino, envio in envios:
+            envio.wait_for_publish(timeout=5)
+            if not envio.is_published():
+                raise TimeoutError(f"Broker MQTT não confirmou a publicação em {destino}")
+    finally:
+        cliente.disconnect()
+        cliente.loop_stop()
+    print(f"Publicado em {MQTT_HOST}:{MQTT_PORT} ({origem})")
 
 
 if __name__ == "__main__":

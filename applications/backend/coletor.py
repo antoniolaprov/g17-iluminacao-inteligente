@@ -27,6 +27,7 @@ import sqlite3
 import sys
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime
@@ -113,9 +114,19 @@ class Coletor:
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         dados = urllib.parse.urlencode({"chat_id": TELEGRAM_CHAT_ID, "text": f"Poste G17: {texto}"}).encode()
         try:
-            urllib.request.urlopen(url, data=dados, timeout=10).read()
-        except Exception as erro:  # sem internet não pode derrubar o coletor
-            print(f"[TELEGRAM] falhou: {erro}", flush=True)
+            with urllib.request.urlopen(url, data=dados, timeout=10) as resposta:
+                retorno = json.load(resposta)
+        except urllib.error.HTTPError as erro:
+            print(f"[TELEGRAM] falhou (HTTP {erro.code})", flush=True)
+            return
+        except Exception as erro:
+            # A exceção pode conter a URL com o token. Registre apenas o tipo.
+            print(f"[TELEGRAM] falhou ({type(erro).__name__})", flush=True)
+            return
+        if isinstance(retorno, dict) and retorno.get("ok") is True:
+            print("[TELEGRAM] alerta aceito pela API", flush=True)
+        else:
+            print("[TELEGRAM] falhou (envio não confirmado pela API)", flush=True)
 
     # ---------------- MQTT ----------------
     def ao_conectar(self, cliente, _userdata, _flags, codigo, _props):
