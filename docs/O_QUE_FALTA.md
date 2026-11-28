@@ -191,7 +191,10 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
 - **Prints:** o dashboard com o P01 e o log.
 - **Pronto quando:** houver evidência (print ou vídeo) do comportamento na placa.
 
-### ⬜ T13 · Ensaio da apresentação (E5) 🤝
+### 🟡 T13 · Ensaio da apresentação (E5) 🤝
+> **27/11/2026 (Miguel Becker + Codex):** o lançador da demo agora sinaliza falha de inicialização
+> quando API, MLflow ou publicação de risco falham. O fluxo foi verificado no Windows com serviços
+> simulados, incluindo falha no reinício da rota. Falta o ensaio completo com o grupo.
 - **O que fazer:** roteiro de ~10 min, dizendo quem fala o quê e em que ordem:
   1. problema e pesquisa;
   2. maquete ao vivo;
