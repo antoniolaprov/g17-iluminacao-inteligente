@@ -142,7 +142,9 @@ def poste(poste_id: str):
         raise HTTPException(404, f"Poste '{poste_id}' não está no config.json")
     dados = resposta_bairro(estado, postes[poste_id]["bairro"], criterio_padrao(estado, None))
     potencias = estado.config.get("potencia_por_classe", {"alto": 90, "medio": 80, "baixo": 70})
-    return {"poste": poste_id, **dados, "potencia_sugerida": int(potencias[dados["classe"]])}
+    return {"poste": poste_id, **dados, "potencia_sugerida": int(potencias[dados["classe"]]),
+            "id_ponto": postes[poste_id].get("id_ponto"),
+            "vinculo_cadastro": postes[poste_id].get("vinculo_cadastro")}
 
 
 class Features(BaseModel):

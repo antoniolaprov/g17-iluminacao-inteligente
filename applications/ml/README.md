@@ -340,7 +340,7 @@ numa validação cruzada estratificada de 5 partes, dentro do treino.
 - [ ] Coletar travessias reais com a maquete e treinar a rota de novo com elas
 - [ ] Decidir qual ranking vira o risco publicado: contagem (padrão) ou taxa (`criterio_risco` no
       `config.json`)
-- [ ] Escolher um `id_ponto` real para o `P01` no `config.json` (precisa dos dados brutos)
+- [x] `ML-07` / T20: P01 com `id_ponto` real 264213064, como referência demonstrativa; API e MQTT propagam o vínculo. [Fonte e reprodução](../../docs/REFERENCIA_CADASTRAL.md).
 - [x] `ML-01`: validação cruzada temporal (`TimeSeriesSplit` por `mes_do_alvo`), métricas de ajuste vs. validação (`gap_val_ajuste_mae`) e $R^2$ no `treinar.py`
 - [x] `ML-13`: `ColumnTransformer` no `treinar.py` (`log1p`+escala só nas contínuas, `OneHotEncoder` em `rpa`, `sin`/`cos` em `mes_do_ano`)
 - [x] `ML-02`: Grid Search via `TimeSeriesSplit` com nested runs (`fase=tuning`) no MLflow e histórico por fold em `metadados.json`

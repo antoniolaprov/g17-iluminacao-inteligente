@@ -1,0 +1,24 @@
+{
+  "registro": {
+    "id_ponto": "264213064",
+    "bairro": "Boa Viagem",
+    "bairro_normalizado": "BOA VIAGEM",
+    "rpa": "6",
+    "tipo_lampa": "LED",
+    "potencia": "70"
+  },
+  "linhas_bairro": 7013,
+  "candidatos_unicos": 4365,
+  "criterio": "Menor id_ponto numérico positivo do bairro, com ocorrência única em todo o cadastro.",
+  "vinculo_cadastro": "referencia_demonstrativa",
+  "fonte": {
+    "titulo": "Iluminação Pública do Recife - 2025",
+    "orgao": "EMLURB",
+    "recurso_id": "76cb7e65-1362-4ea7-ac04-453d67e41c64",
+    "pagina": "https://dados.recife.pe.gov.br/dataset/postes-iluminacao-publica-do-recife/resource/76cb7e65-1362-4ea7-ac04-453d67e41c64",
+    "url_csv": "https://dados.recife.pe.gov.br/dataset/cb834849-e07e-43a1-a101-204b599aaebb/resource/76cb7e65-1362-4ea7-ac04-453d67e41c64/download/iluminacao-publica-do-recife-2025.csv",
+    "licenca": "Open Data Commons Open Database License (ODbL)",
+    "sha256_csv": "68281c9f2a168155a1b16c26541a73013ca6575998b40dfd8b74530034de9abf",
+    "linhas_csv": 111666
+  }
+}

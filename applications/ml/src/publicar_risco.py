@@ -51,10 +51,20 @@ def risco_pelo_arquivo(poste_id: str) -> dict:
     classe = str(linha[f"classe_{criterio}"])
     return {
         "poste": poste_id, "bairro": bairro, "criterio": criterio,
+        "id_ponto": CONFIG["postes"][poste_id].get("id_ponto"),
+        "vinculo_cadastro": CONFIG["postes"][poste_id].get("vinculo_cadastro"),
         "risco": float(linha[f"risco_{criterio}"]), "classe": classe,
         "previsao_chamados": float(linha["previsao_chamados"]),
         "mes_previsto": str(linha["mes_previsto"]), "potencia_sugerida": int(POTENCIAS[classe]),
     }
+
+
+def payload_risco(dados: dict) -> dict:
+    """Contrato de risco com identificação cadastral opcional; comandos seguem só com potência."""
+    payload = {k: dados[k] for k in ("risco", "classe", "bairro", "criterio", "previsao_chamados", "mes_previsto")}
+    payload.update(modelo=dados.get("modelo"), id_ponto=dados.get("id_ponto"),
+                   vinculo_cadastro=dados.get("vinculo_cadastro"))
+    return payload
 
 
 def main() -> None:
@@ -75,8 +85,7 @@ def main() -> None:
     envios = []
     for poste_id in CONFIG["postes"]:
         dados = risco_pela_api(poste_id) if usar_api else risco_pelo_arquivo(poste_id)
-        payload = {k: dados[k] for k in ("risco", "classe", "bairro", "criterio", "previsao_chamados", "mes_previsto")}
-        payload["modelo"] = dados.get("modelo")
+        payload = payload_risco(dados)
         envios.append(cliente.publish(topico(poste_id, "risco"), json.dumps(payload, ensure_ascii=False), qos=1, retain=True))
         texto = f"{poste_id} {dados['bairro']:<14} risco {dados['risco']:.2f} ({dados['classe']})"
         if not args.sem_comando:

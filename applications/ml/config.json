@@ -1,17 +1,62 @@
 {
-  "_comentario": "Liga cada poste (fisico ou simulado) a um bairro real do Recife. O risco publicado no MQTT e o do bairro. criterio_risco escolhe o ranking usado: 'contagem' (chamados previstos) ou 'taxa' (chamados previstos por 1.000 postes), ver applications/ml/README.md secao 5. id_ponto (poste real do cadastro) fica null ate alguem com os dados brutos escolher um.",
+  "_comentario": "Liga cada poste a um bairro real do Recife. O risco publicado no MQTT é do bairro. criterio_risco escolhe contagem ou taxa. P01 usa um id_ponto oficial apenas como referência demonstrativa (não indica instalação da maquete na cidade); fonte em data/processed/referencia_p01.json. P02..P10 são simulados e não têm vínculo individual com o cadastro.",
   "criterio_risco": "contagem",
-  "potencia_por_classe": { "alto": 90, "medio": 80, "baixo": 70 },
+  "potencia_por_classe": {
+    "alto": 90,
+    "medio": 80,
+    "baixo": 70
+  },
   "postes": {
-    "P01": { "bairro": "BOA VIAGEM", "id_ponto": null, "observacao": "maquete fisica (ESP32 com 3 mini postes)" },
-    "P02": { "bairro": "SANTO AMARO", "id_ponto": null, "observacao": "simulador" },
-    "P03": { "bairro": "BOA VISTA", "id_ponto": null, "observacao": "simulador" },
-    "P04": { "bairro": "CASA AMARELA", "id_ponto": null, "observacao": "simulador" },
-    "P05": { "bairro": "ENCRUZILHADA", "id_ponto": null, "observacao": "simulador" },
-    "P06": { "bairro": "GRACAS", "id_ponto": null, "observacao": "simulador" },
-    "P07": { "bairro": "TORRE", "id_ponto": null, "observacao": "simulador" },
-    "P08": { "bairro": "JAQUEIRA", "id_ponto": null, "observacao": "simulador" },
-    "P09": { "bairro": "APIPUCOS", "id_ponto": null, "observacao": "simulador" },
-    "P10": { "bairro": "MONTEIRO", "id_ponto": null, "observacao": "simulador" }
+    "P01": {
+      "bairro": "BOA VIAGEM",
+      "id_ponto": "264213064",
+      "observacao": "maquete física (ESP32 com 3 mini postes); referência demonstrativa, sem instalação no poste cadastrado",
+      "vinculo_cadastro": "referencia_demonstrativa"
+    },
+    "P02": {
+      "bairro": "SANTO AMARO",
+      "id_ponto": null,
+      "observacao": "simulador"
+    },
+    "P03": {
+      "bairro": "BOA VISTA",
+      "id_ponto": null,
+      "observacao": "simulador"
+    },
+    "P04": {
+      "bairro": "CASA AMARELA",
+      "id_ponto": null,
+      "observacao": "simulador"
+    },
+    "P05": {
+      "bairro": "ENCRUZILHADA",
+      "id_ponto": null,
+      "observacao": "simulador"
+    },
+    "P06": {
+      "bairro": "GRACAS",
+      "id_ponto": null,
+      "observacao": "simulador"
+    },
+    "P07": {
+      "bairro": "TORRE",
+      "id_ponto": null,
+      "observacao": "simulador"
+    },
+    "P08": {
+      "bairro": "JAQUEIRA",
+      "id_ponto": null,
+      "observacao": "simulador"
+    },
+    "P09": {
+      "bairro": "APIPUCOS",
+      "id_ponto": null,
+      "observacao": "simulador"
+    },
+    "P10": {
+      "bairro": "MONTEIRO",
+      "id_ponto": null,
+      "observacao": "simulador"
+    }
   }
 }

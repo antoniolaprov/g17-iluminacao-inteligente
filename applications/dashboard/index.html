@@ -608,7 +608,8 @@ function renderizar() {
     caixaRisco.innerHTML = `Ranking do bairro (ML): <strong></strong><br><span></span>`;
     caixaRisco.querySelector('strong').textContent = `${String(r.classe).toUpperCase()} (${fmt(r.risco, 2)})`;
     caixaRisco.querySelector('span').textContent =
-      `${r.bairro} · ${fmt(r.previsao_chamados, 0)} chamados previstos em ${r.mes_previsto}. Índice relativo; não é probabilidade de falha do poste.`;
+      `${r.bairro} · ${fmt(r.previsao_chamados, 0)} chamados previstos em ${r.mes_previsto}. Índice relativo; não é probabilidade de falha do poste.` +
+      (r.id_ponto ? ` Cadastro Emlurb (referência demonstrativa): ${String(r.id_ponto)}.` : '');
   }
   const caixaAnom = $('anomalia-ml');
   caixaAnom.hidden = !(p && p.anomalia);

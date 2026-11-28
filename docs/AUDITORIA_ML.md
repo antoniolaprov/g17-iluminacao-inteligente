@@ -32,7 +32,7 @@
 > **ML-08** feita (`INICIAR_DEMO.bat` + DAGs), **ML-10** feita (`applications/tests/`, 32 testes),
 > **ML-11** feita (economia em `dimerizacao.py`, com extrapolação para o Recife). **ML-04** vale agora
 > para o notebook 03 (feito) e foi concluída nos notebooks 01/02 em 27/11 (T17). **ML-06**
-> continua decisão do grupo. **ML-07** depende dos CSVs brutos (fora do Git). **ML-09** depende da placa.
+> continua decisão do grupo. **ML-07** concluída na T20 (27/11), com referência demonstrativa do P01 documentada em `REFERENCIA_CADASTRAL.md`. **ML-09** depende da placa.
 > **ML-12** (K-Means) concluída em 27/11 na T19: 94 bairros, notebook 04, API e painel; ver `ZONAS_PRIORITARIAS.md`.
 
 ## 1. Resumo Executivo: Estado Atual vs. Rubrica Oficial
@@ -46,7 +46,7 @@
 | **5. Otimização de hiperparâmetros (Grid/Random/Optuna) + MLflow** | ✅ **Concluído (`ML-02`)** | `treinar.py` executa Grid Search via `TimeSeriesSplit(n_splits=5)` em todos os modelos treináveis (33 combinações logadas como nested runs `fase=tuning` no MLflow) e grava o histórico por fold (`cv_folds`) em `metadados.json`. |
 | **6. Validação cruzada + estabilidade + overfitting/underfitting** | ✅ **Concluído (`ML-01`)** | `treinar.py` agora executa `TimeSeriesSplit(n_splits=5)` agrupado por `mes_do_alvo` (média ± desvio padrão) e mede erro no ajuste, validação e teste + $R^2$, comprovando overfitting das árvores e estabilidade do `poisson_glm`. |
 | **7. Integração consumindo dados novos do embarcado/simulador** | ❌ **Faltando** | O pipeline atual prevê apenas com dados históricos da Emlurb. Embora `coletor.py` salve a telemetria viva do ESP32/simulador no SQLite (`central.db`), **nenhum modelo consome esses dados novos para gerar inferências automaticamente**. |
-| **8. Docker Compose (1 comando) + Dashboard + Apresentação** | 🟡 **Revisar** | `docker-compose.yml` funciona, mas `simulador` e `airflow` exigem `--profile`. Dashboard já exibe o risco do ML via MQTT; falta decidir `contagem` vs. `taxa` e preencher `id_ponto`. |
+| **8. Docker Compose (1 comando) + Dashboard + Apresentação** | 🟡 **Revisar** | `docker-compose.yml` funciona, mas `simulador` e `airflow` exigem `--profile`. Dashboard já exibe o risco do ML via MQTT; falta decidir `contagem` vs. `taxa`; `id_ponto` do P01 preenchido na T20 como referência demonstrativa. |
 
 ---
 
@@ -116,8 +116,9 @@
     - Em ambos os critérios, o poste físico `P01` (Boa Viagem) recebe risco **ALTO (90%)**.
   - **O que fazer:** formalizar a escolha no grupo (recomendado: manter `"contagem"` em `config.json` e discutir os dois rankings no relatório/apresentação; se escolher `"taxa"`, atualizar `publicar_risco.py` e `dashboard/index.html` para exibir também `previsao_por_1000_postes`).
 
-- [ ] **ML-07 · Preencher `id_ponto` real no `config.json` e propagar para API/MQTT**
-  - **O que fazer:** consultar o CSV bruto de postes da Emlurb (em `data/raw/postes/`, fora do Git), escolher um `id_ponto` real de Boa Viagem para `P01` (e opcionalmente para `P02`..`P10`) e garantir que `/poste/{id}` e `publicar_risco.py` exponham esse ID se desejado na demo.
+- [x] **ML-07 · Preencher `id_ponto` real no `config.json` e propagar para API/MQTT**
+  - **Concluído em 27/11/2026 (Luiz Claudio):** ID 264213064; fonte e validação em [REFERENCIA_CADASTRAL.md](REFERENCIA_CADASTRAL.md).
+  - **Escopo:** consultar o CSV bruto de postes da Emlurb (em `data/raw/postes/`, fora do Git), escolher um `id_ponto` real de Boa Viagem para `P01` (e opcionalmente para `P02`..`P10`) e garantir que `/poste/{id}` e `publicar_risco.py` exponham esse ID se desejado na demo.
 
 - [ ] **ML-08 · Revisar fluxo do Airflow e Docker Compose "em um comando"**
   - **O que fazer:**
