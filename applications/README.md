@@ -147,3 +147,6 @@ cliente pode usar o IPv6 do PC (`ipconfig`, "Endereço IPv6"); o ESP32 com a bib
 
 O coletor avisa quando um poste entra em FALHA, fica offline ou para de mandar telemetria por 30 s.
 Sem o `.env`, os alertas aparecem só no log e na tabela `alertas` do banco.
+Com a demo em modo simulado, acompanhe `docker compose logs -f coletor` dentro de `applications/`.
+Quando o P02 entrar em FALHA, o coletor registra o alerta e informa se a API aceitou o envio.
+Confirme a mensagem no celular e capture a evidência da T15.

@@ -214,7 +214,10 @@ O Claude explica as opções, **o grupo decide** e depois o Claude ajusta o cód
 
 ## Prioridade 3: bônus e opcionais
 
-### ⬜ T15 · Alertas no Telegram (D1, bônus de até +10) 🤝
+### 🟡 T15 · Alertas no Telegram (D1, bônus de até +10) 🤝
+> **27/11/2026 (Miguel Becker + Codex):** o coletor registra se a API aceitou o envio ou se houve
+> erro, com o token mantido fora do log. O fluxo do P02 e as falhas da API têm testes com resposta
+> simulada. Falta configurar o bot do grupo e capturar a mensagem no celular.
 1. 👤 Crie um bot no **@BotFather** e pegue o `chat_id` (passo a passo em `applications/README.md`).
 2. 👤 Crie `applications/.env` com `TELEGRAM_TOKEN` e `TELEGRAM_CHAT_ID`. Esse arquivo **nunca** vai para o Git.
 3. 🤖 Confira se a mensagem chega quando o P02 entra em FALHA, que acontece em poucos minutos no simulador.

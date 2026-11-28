@@ -3,10 +3,14 @@ coletor (SQLite) e detector de anomalias."""
 
 import json
 import sqlite3
+from io import BytesIO
 from types import SimpleNamespace
+from urllib.error import HTTPError, URLError
+from urllib.parse import parse_qs
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from preparar_dados import normalizar_bairro
 
@@ -79,6 +83,66 @@ def test_coletor_grava_e_alerta_falha_uma_vez(tmp_path, monkeypatch):
     assert db.execute("SELECT COUNT(*) FROM telemetria").fetchone()[0] == 3
     assert db.execute("SELECT COUNT(*) FROM alertas WHERE tipo = 'falha'").fetchone()[0] == 1
     assert db.execute("SELECT COUNT(*) FROM anomalia").fetchone()[0] == 1
+
+
+def test_falha_do_p02_confirma_um_envio_ao_telegram(tmp_path, monkeypatch, capsys):
+    import coletor
+
+    monkeypatch.setattr(coletor, "DB_PATH", tmp_path / "central.db")
+    monkeypatch.setattr(coletor, "TELEGRAM_TOKEN", "token-teste")
+    monkeypatch.setattr(coletor, "TELEGRAM_CHAT_ID", "42")
+    monkeypatch.setattr(coletor.threading, "Thread", lambda target, args, daemon: SimpleNamespace(
+        start=lambda: target(*args),
+    ))
+    pedidos = []
+
+    def responder(url, *, data, timeout):
+        assert url == "https://api.telegram.org/bottoken-teste/sendMessage"
+        assert timeout == 10
+        pedidos.append(parse_qs(data.decode()))
+        return BytesIO(b'{"ok": true, "result": {"message_id": 1}}')
+
+    monkeypatch.setattr(coletor.urllib.request, "urlopen", responder)
+    p02 = _poste(2)
+    p02.desgaste = 0.8
+    mensagem = SimpleNamespace(
+        topic="g17/poste/P02/telemetria", payload=json.dumps(p02.passo()).encode(), retain=False,
+    )
+    c = coletor.Coletor()
+    try:
+        c.ao_receber(None, None, mensagem)
+        c.ao_receber(None, None, mensagem)
+        assert c.db.execute("SELECT id, tipo FROM alertas").fetchall() == [("P02", "falha")]
+    finally:
+        c.db.close()
+    assert len(pedidos) == 1
+    assert pedidos[0]["chat_id"] == ["42"]
+    assert pedidos[0]["text"][0].startswith("Poste G17: poste P02 em FALHA")
+    assert capsys.readouterr().out.count("[TELEGRAM] alerta aceito pela API") == 1
+
+
+@pytest.mark.parametrize("resposta, detalhe", [
+    (b'{"ok": false, "description": "token-teste"}', "envio não confirmado"),
+    (b"resposta invalida", "JSONDecodeError"),
+    (URLError("https://api.telegram.org/bottoken-teste/sendMessage"), "URLError"),
+    (HTTPError("https://api.telegram.org/bottoken-teste/sendMessage", 401, "token-teste", {}, None), "HTTP 401"),
+])
+def test_telegram_registra_falha_sem_token(monkeypatch, capsys, resposta, detalhe):
+    import coletor
+
+    monkeypatch.setattr(coletor, "TELEGRAM_TOKEN", "token-teste")
+    monkeypatch.setattr(coletor, "TELEGRAM_CHAT_ID", "42")
+
+    def responder(url, *, data, timeout):
+        if isinstance(resposta, Exception):
+            raise resposta
+        return BytesIO(resposta)
+
+    monkeypatch.setattr(coletor.urllib.request, "urlopen", responder)
+    coletor.Coletor.enviar_telegram("P02 em FALHA")
+    log = capsys.readouterr().out
+    assert "[TELEGRAM] falhou" in log and detalhe in log
+    assert "token-teste" not in log
 
 
 # ---------------- detector de anomalias ----------------
