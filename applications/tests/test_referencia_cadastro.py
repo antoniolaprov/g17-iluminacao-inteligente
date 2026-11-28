@@ -3,6 +3,7 @@ import hashlib
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock
 from urllib.error import URLError
 
 import pandas as pd
@@ -85,11 +86,15 @@ def test_publicacao_preserva_topicos_e_comandos(monkeypatch, modo_api, sem_coman
         def disconnect(self): pass
         def publish(self, topico, payload, qos, retain=False):
             mensagens.append((topico, json.loads(payload), qos, retain))
-            return SimpleNamespace(wait_for_publish=lambda **kwargs: None)
+            return SimpleNamespace(wait_for_publish=lambda **kwargs: None, is_published=lambda: True)
+    tabela = publicar.carregar_risco_local()
+    carregar_local = Mock(return_value=tabela)
+    monkeypatch.setattr(publicar, "carregar_risco_local", carregar_local)
     monkeypatch.setattr(publicar, "risco_pela_api", buscar)
     monkeypatch.setattr(publicar, "novo_cliente", lambda _: Cliente())
     monkeypatch.setattr("sys.argv", ["publicar_risco.py"] + (["--sem-comando"] if sem_comando else []))
     publicar.main()
+    assert carregar_local.call_count == (0 if modo_api == "disponivel" else 1)
     riscos = [m for m in mensagens if m[0].endswith("/risco")]
     comandos = [m for m in mensagens if m[0].endswith("/comando")]
     assert len(riscos) == len(publicar.CONFIG["postes"])
@@ -100,10 +105,26 @@ def test_publicacao_preserva_topicos_e_comandos(monkeypatch, modo_api, sem_coman
         assert payload["id_ponto"] == publicar.CONFIG["postes"][poste]["id_ponto"]
         assert payload["vinculo_cadastro"] == publicar.CONFIG["postes"][poste].get("vinculo_cadastro")
         risco_esperado = (0.123456 if modo_api == "disponivel"
-                          else publicar.risco_pelo_arquivo(poste)["risco"])
+                          else publicar.risco_pelo_arquivo(poste, tabela)["risco"])
         assert payload["risco"] == risco_esperado
     assert len(comandos) == (0 if sem_comando else len(riscos))
     for _, payload, qos, retido in comandos:
         assert set(payload) == {"potencia"}
         assert payload["potencia"] in (70, 80, 90)
         assert qos == 1 and not retido
+
+
+def test_publicacao_sem_confirmacao_do_broker_falha_e_fecha_cliente(monkeypatch, capsys):
+    cliente = Mock()
+    cliente.publish.return_value.is_published.return_value = False
+    monkeypatch.setattr(publicar, "risco_pela_api", publicar.risco_pelo_arquivo)
+    monkeypatch.setattr(publicar, "novo_cliente", lambda _: cliente)
+    monkeypatch.setattr("sys.argv", ["publicar_risco.py", "--sem-comando"])
+
+    with pytest.raises(TimeoutError, match="g17/poste/P01/risco"):
+        publicar.main()
+
+    cliente.publish.return_value.wait_for_publish.assert_called_once_with(timeout=5)
+    cliente.disconnect.assert_called_once()
+    cliente.loop_stop.assert_called_once()
+    assert "Publicado em" not in capsys.readouterr().out
